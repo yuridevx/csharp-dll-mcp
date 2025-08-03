@@ -233,7 +233,7 @@ public class ExtractorTests
 
         // Assert
         Assert.True(result.TryGetProperty("error", out var error));
-        Assert.Contains("Type(s) not found: MyTestLibrary.NonExistentClass", error.GetString());
+        Assert.Contains("Type(s) not found or ambiguous: MyTestLibrary.NonExistentClass", error.GetString());
     }
     [Fact]
     public void Extractor_ShouldIncludeEnumsAndStructsInNamespaceInfo()
@@ -333,7 +333,7 @@ public class ExtractorTests
 
         // Assert
         Assert.True(result.TryGetProperty("error", out var error));
-        Assert.Contains("Type(s) not found: NonExistentType", error.GetString());
+        Assert.Contains("Type(s) not found or ambiguous: NonExistentType", error.GetString());
     }
     [Fact]
     public void GetTypeDetails_ShouldReturnStructLayoutAndFieldOffsets()
