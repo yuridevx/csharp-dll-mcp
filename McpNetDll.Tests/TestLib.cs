@@ -375,4 +375,46 @@ public class ExtractorTests
         Assert.Equal("System.Int32", int2Field.GetProperty("Type").GetString());
         Assert.Equal(4, int2Field.GetProperty("Offset").GetInt32());
     }
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void ListNamespaces_ShouldReturnError_WhenPathIsNullOrEmpty(string dllPath)
+    {
+        // Act
+        var resultJson = _extractor.ListNamespaces(dllPath);
+        var result = JsonSerializer.Deserialize<JsonElement>(resultJson);
+
+        // Assert
+        Assert.True(result.TryGetProperty("error", out var error));
+        Assert.Equal("Assembly path cannot be null or empty.", error.GetString());
+    }
+    
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void GetTypeDetails_ShouldReturnError_WhenPathIsNullOrEmpty(string dllPath)
+    {
+        // Arrange
+        string[] typeNames = { "MyPublicClass" };
+
+        // Act
+        var resultJson = _extractor.GetTypeDetails(dllPath, typeNames);
+        var result = JsonSerializer.Deserialize<JsonElement>(resultJson);
+
+        // Assert
+        Assert.True(result.TryGetProperty("error", out var error));
+        Assert.Equal("Assembly path cannot be null or empty.", error.GetString());
+    }
+    
+    [Fact]
+    public void GetTypeDetails_ShouldReturnError_WhenTypeNamesIsNull()
+    {
+        // Act
+        var resultJson = _extractor.GetTypeDetails(_testDllPath, null);
+        var result = JsonSerializer.Deserialize<JsonElement>(resultJson);
+
+        // Assert
+        Assert.True(result.TryGetProperty("error", out var error));
+        Assert.Equal("TypeNames array cannot be empty.", error.GetString());
+    }
 }

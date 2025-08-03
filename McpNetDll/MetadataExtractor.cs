@@ -101,6 +101,11 @@ public class Extractor
     // Private helpers
     private object LoadAndProcessAssembly(string assemblyPath, Func<List<TypeDef>, object> processor)
     {
+        if (string.IsNullOrEmpty(assemblyPath))
+        {
+            return new { error = "Assembly path cannot be null or empty." };
+        }
+        
         assemblyPath = ConvertWslPathToWindowsPath(assemblyPath);
 
         if (!File.Exists(assemblyPath))
