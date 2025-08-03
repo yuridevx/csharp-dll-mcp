@@ -1,168 +1,185 @@
 using dnlib.DotNet;
 using System.Text.Json;
-using System.Xml.Linq;
 using System;
 
 namespace McpNetDll;
 
 public class Extractor
 {
-    public string Extract(string assemblyPath)
+    // New public API
+    public string ListNamespaces(string assemblyPath)
     {
-        return ExtractWithFilters(assemblyPath, null, null);
+        var allTypes = LoadPublicTypes(assemblyPath, out var error);
+        if (error != null)
+        {
+            return JsonSerializer.Serialize(new { error });
+        }
+
+        var namespaceInfo = allTypes
+            .GroupBy(t => t.Namespace.String)
+            .Select(g => new NamespaceMetadata
+            {
+                Name = g.Key,
+                ClassCount = g.Count(),
+                ClassNames = g.Select(t => t.Name.String).ToList()
+            })
+            .OrderBy(ns => ns.Name)
+            .ToList();
+
+        return JsonSerializer.Serialize(new { Namespaces = namespaceInfo },
+            new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
     }
 
-    public string ExtractWithFilters(string assemblyPath, string[]? namespaces, string[]? classNames)
+    public string ListTypesInNamespaces(string assemblyPath, string[] namespaces)
     {
+        if (namespaces == null || namespaces.Length == 0)
+        {
+            return JsonSerializer.Serialize(new { error = "Namespaces array cannot be empty." });
+        }
+        
+        var allTypes = LoadPublicTypes(assemblyPath, out var error);
+        if (error != null)
+        {
+            return JsonSerializer.Serialize(new { error });
+        }
+
+        var availableNamespaces = allTypes.Select(t => t.Namespace.String).Distinct().ToList();
+        var notFoundNamespaces = namespaces.Where(ns => !availableNamespaces.Contains(ns)).ToList();
+        
+        if (notFoundNamespaces.Any())
+        {
+            return JsonSerializer.Serialize(new {
+                error = $"Namespace(s) not found: {string.Join(", ", notFoundNamespaces)}",
+                availableNamespaces = availableNamespaces.OrderBy(ns => ns).ToList()
+            });
+        }
+
+        var filteredTypes = allTypes
+            .Where(t => namespaces.Contains(t.Namespace.String))
+            .Select(type => new TypeMetadata
+            {
+                Name = type.Name.String,
+                Namespace = type.Namespace.String,
+                FullName = type.FullName,
+                TypeKind = GetTypeKind(type),
+                MethodCount = type.Methods.Count(m => m.IsPublic && !m.IsConstructor && !m.IsGetter && !m.IsSetter),
+                PropertyCount = type.Properties.Count(p => p.GetMethods.Any(gm => gm?.IsPublic ?? false)),
+                Methods = null,
+                Properties = null,
+                EnumValues = type.IsEnum ? GetEnumValues(type) : null
+            })
+            .OrderBy(t => t.Namespace)
+            .ThenBy(t => t.Name)
+            .ToList();
+
+        return JsonSerializer.Serialize(new { Types = filteredTypes },
+            new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
+    }
+
+    public string GetTypeDetails(string assemblyPath, string[] typeNames)
+    {
+        if (typeNames == null || typeNames.Length == 0)
+        {
+            return JsonSerializer.Serialize(new { error = "TypeNames array cannot be empty." });
+        }
+
+        var allTypes = LoadPublicTypes(assemblyPath, out var error);
+        if (error != null)
+        {
+            return JsonSerializer.Serialize(new { error });
+        }
+        
+        var notFoundTypes = new List<string>();
+        var typesToExtract = new List<TypeDef>();
+
+        foreach (var nameToFind in typeNames)
+        {
+            var foundTypes = allTypes.Where(t =>
+                t.FullName.Equals(nameToFind, StringComparison.OrdinalIgnoreCase) ||
+                t.Name.String.Equals(nameToFind, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (foundTypes.Any())
+            {
+                typesToExtract.AddRange(foundTypes);
+            }
+            else
+            {
+                notFoundTypes.Add(nameToFind);
+            }
+        }
+        
+        typesToExtract = typesToExtract.Distinct().ToList();
+
+        if (notFoundTypes.Any())
+        {
+            return JsonSerializer.Serialize(new {
+                error = $"Type(s) not found: {string.Join(", ", notFoundTypes)}",
+                availableTypes = allTypes.Select(t => t.FullName).OrderBy(cn => cn).ToList()
+            });
+        }
+
+        var filteredTypes = typesToExtract
+            .Select(type => new TypeMetadata
+            {
+                Name = type.Name.String,
+                Namespace = type.Namespace.String,
+                FullName = type.FullName,
+                TypeKind = GetTypeKind(type),
+                MethodCount = type.Methods.Count(m => m.IsPublic && !m.IsConstructor && !m.IsGetter && !m.IsSetter),
+                PropertyCount = type.Properties.Count(p => p.GetMethods.Any(gm => gm?.IsPublic ?? false)),
+                Methods = type.Methods
+                   .Where(m => m.IsPublic && !m.IsConstructor && !m.IsGetter && !m.IsSetter && m.Parameters.Count > 0)
+                   .Select(method => new MethodMetadata
+                   {
+                       Name = method.Name.String,
+                       ReturnType = method.MethodSig.RetType.FullName,
+                       Parameters = method.Parameters.Select(p => new ParameterMetadata
+                       {
+                           Name = p.Name,
+                           Type = p.Type.FullName
+                       }).ToList()
+                   }).ToList(),
+                Properties = type.Properties
+                   .Where(p => p.GetMethods.Any(gm => gm?.IsPublic ?? false))
+                   .Select(prop => new PropertyMetadata
+                   {
+                       Name = prop.Name.String,
+                       Type = prop.PropertySig.RetType.FullName
+                   }).ToList(),
+                EnumValues = type.IsEnum ? GetEnumValues(type) : null
+            })
+            .OrderBy(t => t.FullName)
+            .ToList();
+            
+        return JsonSerializer.Serialize(new { Types = filteredTypes },
+            new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
+    }
+
+    // Private helpers
+    private List<TypeDef>? LoadPublicTypes(string assemblyPath, out string? error)
+    {
+        error = null;
         assemblyPath = ConvertWslPathToWindowsPath(assemblyPath);
 
         if (!File.Exists(assemblyPath))
         {
-            return JsonSerializer.Serialize(new { error = "Assembly file not found." });
+            error = "Assembly file not found.";
+            return null;
         }
 
-        // Validate parameters
-        if (namespaces != null && classNames != null)
+        try
         {
-            return JsonSerializer.Serialize(new { error = "Cannot specify both namespaces and classNames parameters. Use either namespaces for class-level info or classNames for member-level info." });
-        }
-
-        if (namespaces != null && namespaces.Length == 0)
-        {
-            return JsonSerializer.Serialize(new { error = "Namespaces array cannot be empty." });
-        }
-
-        if (classNames != null && classNames.Length == 0)
-        {
-            return JsonSerializer.Serialize(new { error = "ClassNames array cannot be empty." });
-        }
-
-        // Validate class name format
-        if (classNames != null)
-        {
-            foreach (var className in classNames)
-            {
-                if (string.IsNullOrWhiteSpace(className) || !className.Contains('.'))
-                {
-                    return JsonSerializer.Serialize(new { error = $"Invalid class name format: '{className}'. Expected format: 'Namespace.Class'." });
-                }
-            }
-        }
-
-        var xmlDocPath = Path.ChangeExtension(assemblyPath, ".xml");
-        var comments = LoadComments(xmlDocPath);
-
-        var modCtx = ModuleDef.CreateModuleContext();
-        var module = ModuleDefMD.Load(assemblyPath, modCtx);
-        var allTypes = module.Types
-            .Where(t => t.IsPublic && (t.IsClass || t.IsInterface))
-            .ToList();
-
-        // Mode 1: No filters - return namespace information
-        if (namespaces == null && classNames == null)
-        {
-            var namespaceInfo = allTypes
-                .GroupBy(t => t.Namespace.String)
-                .Select(g => new NamespaceMetadata
-                {
-                    Name = g.Key,
-                    ClassCount = g.Count(),
-                    ClassNames = g.Select(t => t.Name.String).ToList()
-                })
-                .OrderBy(ns => ns.Name)
+            var modCtx = ModuleDef.CreateModuleContext();
+            var module = ModuleDefMD.Load(assemblyPath, modCtx);
+            return module.Types
+                .Where(t => t.IsPublic && (t.IsClass || t.IsInterface || t.IsEnum || t.IsValueType))
                 .ToList();
-
-            return JsonSerializer.Serialize(new { Namespaces = namespaceInfo }, 
-                new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
         }
-
-        // Mode 2: Filter by namespaces - return class information
-        if (namespaces != null && classNames == null)
+        catch (Exception ex)
         {
-            var availableNamespaces = allTypes.Select(t => t.Namespace.String).Distinct().ToList();
-            var notFoundNamespaces = namespaces.Where(ns => !availableNamespaces.Contains(ns)).ToList();
-            
-            if (notFoundNamespaces.Any())
-            {
-                return JsonSerializer.Serialize(new { 
-                    error = $"Namespace(s) not found: {string.Join(", ", notFoundNamespaces)}",
-                    availableNamespaces = availableNamespaces.OrderBy(ns => ns).ToList()
-                });
-            }
-
-            var filteredTypes = allTypes
-                .Where(t => namespaces.Contains(t.Namespace.String))
-                .Select(type => new TypeMetadata
-                {
-                    Name = type.Name.String,
-                    Namespace = type.Namespace.String,
-                    FullName = type.FullName,
-                    Documentation = comments.GetValueOrDefault(GetXmlDocKey(type)),
-                    MethodCount = type.Methods.Count(m => m.IsPublic && !m.IsConstructor && !m.IsGetter && !m.IsSetter),
-                    PropertyCount = type.Properties.Count(p => p.GetMethods.Any(gm => gm?.IsPublic ?? false)),
-                    Methods = null,
-                    Properties = null
-                })
-                .OrderBy(t => t.Namespace)
-                .ThenBy(t => t.Name)
-                .ToList();
-
-            return JsonSerializer.Serialize(new { Types = filteredTypes }, 
-                new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
+            error = $"Failed to load assembly: {ex.Message}";
+            return null;
         }
-
-        // Mode 3: Filter by class names - return detailed member information
-        if (classNames != null)
-        {
-            var availableClasses = allTypes.Select(t => t.FullName).ToList();
-            var notFoundClasses = classNames.Where(cn => !availableClasses.Contains(cn)).ToList();
-            
-            if (notFoundClasses.Any())
-            {
-                return JsonSerializer.Serialize(new { 
-                    error = $"Class(es) not found: {string.Join(", ", notFoundClasses)}",
-                    availableClasses = availableClasses.OrderBy(cn => cn).ToList()
-                });
-            }
-
-            var filteredTypes = allTypes
-                .Where(t => classNames.Contains(t.FullName))
-                .Select(type => new TypeMetadata
-                {
-                    Name = type.Name.String,
-                    Namespace = type.Namespace.String,
-                    FullName = type.FullName,
-                    Documentation = comments.GetValueOrDefault(GetXmlDocKey(type)),
-                    MethodCount = null,
-                    PropertyCount = null,
-                    Methods = type.Methods
-                        .Where(m => m.IsPublic && !m.IsConstructor && !m.IsGetter && !m.IsSetter)
-                        .Select(method => new MethodMetadata
-                        {
-                            Name = method.Name.String,
-                            ReturnType = method.MethodSig.RetType.FullName,
-                            Documentation = comments.GetValueOrDefault(GetXmlDocKey(method)),
-                            Parameters = method.Parameters.Select(p => new ParameterMetadata
-                            {
-                                Name = p.Name,
-                                Type = p.Type.FullName
-                            }).ToList()
-                        }).ToList(),
-                    Properties = type.Properties
-                        .Where(p => p.GetMethods.Any(gm => gm?.IsPublic ?? false))
-                        .Select(prop => new PropertyMetadata
-                        {
-                            Name = prop.Name.String,
-                            Type = prop.PropertySig.RetType.FullName,
-                            Documentation = comments.GetValueOrDefault(GetXmlDocKey(prop))
-                        }).ToList()
-                }).ToList();
-
-            return JsonSerializer.Serialize(new { Types = filteredTypes }, 
-                new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
-        }
-
-        return JsonSerializer.Serialize(new { error = "Invalid filter parameters." });
     }
 
     private string ConvertWslPathToWindowsPath(string path)
@@ -176,37 +193,26 @@ public class Extractor
         return path;
     }
 
-    private Dictionary<string, string> LoadComments(string xmlPath)
+    private string GetTypeKind(TypeDef type)
     {
-        if (!File.Exists(xmlPath))
-        {
-            return new Dictionary<string, string>();
-        }
-
-        try
-        {
-            var xdoc = XDocument.Load(xmlPath);
-            return xdoc.Descendants("member")
-                .ToDictionary(
-                    member => member.Attribute("name")!.Value,
-                    member => string.Concat(member.DescendantNodes().OfType<XText>()).Trim()
-                );
-        }
-        catch
-        {
-            return new Dictionary<string, string>();
-        }
+        if (type.IsEnum) return "Enum";
+        if (type.IsValueType && !type.IsPrimitive) return "Struct";
+        if (type.IsInterface) return "Interface";
+        if (type.IsClass) return "Class";
+        return "Other";
     }
 
-    private string GetXmlDocKey(TypeDef type) => $"T:{type.FullName}";
-
-    private string GetXmlDocKey(MethodDef method)
+    private List<EnumValueMetadata> GetEnumValues(TypeDef type)
     {
-        var parameters = string.Join(",", method.Parameters.Select(p => p.Type.FullName));
-        return $"M:{method.DeclaringType.FullName}.{method.Name.String}{(string.IsNullOrEmpty(parameters) ? "" : $"({parameters})")}";
+        return type.Fields
+            .Where(f => f.IsPublic && f.IsStatic && f.IsLiteral)
+            .Select(f => new EnumValueMetadata
+            {
+                Name = f.Name.String,
+                Value = f.Constant.Value?.ToString()
+            })
+            .ToList();
     }
-
-    private string GetXmlDocKey(PropertyDef prop) => $"P:{prop.DeclaringType.FullName}.{prop.Name.String}";
 }
 
 // Data model for serialization
@@ -228,18 +234,18 @@ public class TypeMetadata
     public required string Name { get; init; }
     public required string Namespace { get; init; }
     public required string FullName { get; init; }
-    public string? Documentation { get; init; }
+    public required string TypeKind { get; init; }
     public int? MethodCount { get; init; }
     public int? PropertyCount { get; init; }
     public List<MethodMetadata>? Methods { get; init; }
     public List<PropertyMetadata>? Properties { get; init; }
+    public List<EnumValueMetadata>? EnumValues { get; init; }
 }
 
 public class MethodMetadata
 {
     public required string Name { get; init; }
     public required string ReturnType { get; init; }
-    public string? Documentation { get; init; }
     public required List<ParameterMetadata> Parameters { get; init; }
 }
 
@@ -247,11 +253,16 @@ public class PropertyMetadata
 {
     public required string Name { get; init; }
     public required string Type { get; init; }
-    public string? Documentation { get; init; }
 }
 
 public class ParameterMetadata
 {
     public required string Name { get; init; }
     public required string Type { get; init; }
-} 
+}
+
+public class EnumValueMetadata
+{
+    public required string Name { get; init; }
+    public string? Value { get; init; }
+}

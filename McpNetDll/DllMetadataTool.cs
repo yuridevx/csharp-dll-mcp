@@ -7,19 +7,36 @@ namespace McpNetDll;
 public static class DllMetadataTool
 {
     [McpServerTool,
-     Description(
-         "Analyzes a .NET assembly file (.dll) to extract its public API information with layered filtering. Supports three modes: 1) No filters - returns namespace information, 2) With namespaces - returns class information for specified namespaces, 3) With class names - returns detailed member information for specified classes. The primary use case is for an AI to get the most accurate, up-to-date API definition of a library when API calls fail or usage is unclear, helping to analyze and correct code. It is crucial that the caller should make to find and provides the absolute path to the target library's DLL file.")]
-    public static string ExtractMetadata(
+     Description("Lists all public namespaces in the assembly. This is the recommended starting point for exploring the library's structure.")]
+    public static string ListNamespaces(
+        Extractor extractor,
+        [Description("The absolute path to the DLL file.")]
+        string dllPath)
+    {
+        return extractor.ListNamespaces(dllPath);
+    }
+
+    [McpServerTool,
+     Description("Lists all public .NET types (including classes, structs, enums, and interfaces) within the specified namespaces.")]
+    public static string ListTypesInNamespaces(
         Extractor extractor,
         [Description("The absolute path to the DLL file.")]
         string dllPath,
-        [Description(
-            "Optional: Array of namespace names to filter by. When provided, returns class information for these namespaces only.")]
-        string[]? namespaces = null,
-        [Description(
-            "Optional: Array of full class names (format: Namespace.Class) to filter by. When provided, returns detailed member information for these classes only.")]
-        string[]? classNames = null)
+        [Description("An array of namespace names to inspect. Use `ListNamespaces` to discover available namespaces.")]
+        string[] namespaces)
     {
-        return extractor.ExtractWithFilters(dllPath, namespaces, classNames);
+        return extractor.ListTypesInNamespaces(dllPath, namespaces);
+    }
+
+    [McpServerTool,
+     Description("Gets detailed public API information for one or more .NET types (including classes, structs, enums, and interfaces), including methods, properties, and other members. You can use full or simple type names.")]
+    public static string GetTypeDetails(
+        Extractor extractor,
+        [Description("The absolute path to the DLL file.")]
+        string dllPath,
+        [Description("An array of type names (e.g., 'MyClass', 'MyNamespace.MyClass') to get details for. Use `ListTypesInNamespaces` to discover types.")]
+        string[] typeNames)
+    {
+        return extractor.GetTypeDetails(dllPath, typeNames);
     }
 }
