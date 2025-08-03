@@ -56,7 +56,7 @@ public class Extractor
 
         var result = LoadAndProcessAssembly(assemblyPath, allTypes =>
         {
-            var typeMap = allTypes.GroupBy(t => t.FullName.ToLowerInvariant()).ToDictionary(g => g.Key, g => g.First());
+            var typeMap = allTypes.GroupBy(t => $"{t.Namespace.String}.{t.Name.String}".ToLowerInvariant()).ToDictionary(g => g.Key, g => g.First());
             var simpleNameMap = allTypes.GroupBy(t => t.Name.String.ToLowerInvariant()).ToDictionary(g => g.Key, g => g.ToList());
 
             var typesToExtract = new HashSet<TypeDef>();
@@ -83,13 +83,13 @@ public class Extractor
             {
                 return (object)new {
                     error = $"Type(s) not found or ambiguous: {string.Join(", ", notFoundTypes)}",
-                    availableTypes = allTypes.Select(t => t.FullName).OrderBy(n => n).ToList()
+                    availableTypes = allTypes.Select(t => $"{t.Namespace.String}.{t.Name.String}").OrderBy(n => n).ToList()
                 };
             }
 
             var filteredTypes = typesToExtract
                 .Select(type => ExtractTypeMetadata(type, withMemberDetails: true))
-                .OrderBy(t => t.FullName)
+                .OrderBy(t => t.Name).ThenBy(t => t.Namespace)
                 .ToList();
 
             return new { Types = filteredTypes };
@@ -133,7 +133,6 @@ public class Extractor
         {
             Name = type.Name.String,
             Namespace = type.Namespace.String,
-            FullName = type.FullName,
             TypeKind = GetTypeKind(type),
             MethodCount = type.Methods.Count(m => m.IsPublic && !m.IsSpecialName),
             PropertyCount = type.Properties.Count(p => p.GetMethod?.IsPublic ?? p.SetMethod?.IsPublic ?? false),

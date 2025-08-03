@@ -18,7 +18,6 @@ public class TypeMetadata
 {
     public required string Name { get; init; }
     public required string Namespace { get; init; }
-    public required string FullName { get; init; }
     public required string TypeKind { get; init; }
     public int? MethodCount { get; init; }
     public int? PropertyCount { get; init; }

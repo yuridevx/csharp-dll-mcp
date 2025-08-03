@@ -64,7 +64,6 @@ public class ExtractorTests
 
         var myPublicClass = types.EnumerateArray().First(t => t.GetProperty("Name").GetString() == "MyPublicClass");
         Assert.Equal("MyTestLibrary", myPublicClass.GetProperty("Namespace").GetString());
-        Assert.Equal("MyTestLibrary.MyPublicClass", myPublicClass.GetProperty("FullName").GetString());
         Assert.True(myPublicClass.GetProperty("MethodCount").GetInt32() > 0);
         Assert.True(myPublicClass.GetProperty("PropertyCount").GetInt32() > 0);
         Assert.False(myPublicClass.TryGetProperty("Methods", out _));
@@ -77,7 +76,7 @@ public class ExtractorTests
         // Act
         var resultJsonNamespace = _extractor.ListNamespaces(_testDllPath);
         var resultJsonClass = _extractor.ListNamespaces(_testDllPath, new[] { "MyTestLibrary" });
-        var resultJsonMember = _extractor.GetTypeDetails(_testDllPath, new[] { "MyTestLibrary.MyPublicClass" });
+        var resultJsonMember = _extractor.GetTypeDetails(_testDllPath, new[] { "MyPublicClass" }); // Changed to use simple name
 
         var resultNamespace = JsonSerializer.Deserialize<JsonElement>(resultJsonNamespace);
         var resultClass = JsonSerializer.Deserialize<JsonElement>(resultJsonClass);
@@ -119,7 +118,7 @@ public class ExtractorTests
     public void GetTypeDetails_ShouldReturnMemberInfo_WhenFilteredByClassName()
     {
         // Arrange
-        string[] classNames = { "MyTestLibrary.MyPublicClass" };
+        string[] classNames = { "MyPublicClass" }; // Changed to use simple name
 
         // Act
         var resultJson = _extractor.GetTypeDetails(_testDllPath, classNames);
@@ -225,7 +224,7 @@ public class ExtractorTests
     public void GetTypeDetails_ShouldReturnError_WhenClassNotFound()
     {
         // Arrange
-        string[] classNames = { "MyTestLibrary.NonExistentClass" };
+        string[] classNames = { "NonExistentClass" }; // Changed to use simple name
 
         // Act
         var resultJson = _extractor.GetTypeDetails(_testDllPath, classNames);
@@ -233,7 +232,7 @@ public class ExtractorTests
 
         // Assert
         Assert.True(result.TryGetProperty("error", out var error));
-        Assert.Contains("Type(s) not found or ambiguous: MyTestLibrary.NonExistentClass", error.GetString());
+        Assert.Contains("Type(s) not found or ambiguous: NonExistentClass", error.GetString());
     }
     [Fact]
     public void Extractor_ShouldIncludeEnumsAndStructsInNamespaceInfo()
