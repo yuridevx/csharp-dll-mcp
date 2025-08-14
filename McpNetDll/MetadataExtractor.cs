@@ -43,6 +43,9 @@ public class Extractor
 
     public Extractor() : this(Array.Empty<string>()) { }
 
+    public List<string> GetAvailableNamespaces() => 
+        _types.Select(t => t.Namespace).Distinct().OrderBy(ns => ns).ToList();
+
     public string ListNamespaces(string[]? namespaces = null)
     {
         if (_loadErrors.Any() && !_types.Any())

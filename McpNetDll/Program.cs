@@ -42,10 +42,21 @@ public class Program
         // Redirect console logging to stderr
         builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
 
-        builder.Services.AddSingleton(new Extractor(dllPaths));
+        var extractor = new Extractor(dllPaths);
+        var availableNamespaces = extractor.GetAvailableNamespaces();
+        var namespaceSummary = availableNamespaces.Any() 
+            ? $"Loaded {availableNamespaces.Count} namespaces: {string.Join(", ", availableNamespaces.Take(5))}{(availableNamespaces.Count > 5 ? "..." : "")}"
+            : "No namespaces loaded";
+
+        builder.Services.AddSingleton(extractor);
         builder.Services.AddSingleton(new DllPathRegistry(dllPaths));
         builder.Services
-            .AddMcpServer(server => { server.ServerInfo = new() { Name = "McpNetDll", Version = "1.0.0" }; })
+            .AddMcpServer(server => { 
+                server.ServerInfo = new() { 
+                    Name = $"McpNetDll ({namespaceSummary})", 
+                    Version = "1.0.0"
+                }; 
+            })
             .WithStdioServerTransport()
             .WithToolsFromAssembly(); // Scans the assembly for [McpServerToolType]
 
