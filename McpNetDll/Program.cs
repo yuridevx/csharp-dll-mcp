@@ -1,6 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using McpNetDll.Registry;
+using McpNetDll.Repository;
+using McpNetDll.Helpers;
 
 namespace McpNetDll;
 
@@ -15,7 +18,10 @@ public class Program
             Environment.Exit(1);
         }
 
-        var dllPaths = args.Where(File.Exists).ToArray();
+        var dllPaths = args.Where(File.Exists)
+            .Select(PathHelper.ConvertWslPath)
+            .ToArray();
+            
         if (dllPaths.Length == 0)
         {
             Console.Error.WriteLine("Error: None of the provided DLL paths exist.");
@@ -27,13 +33,22 @@ public class Program
         // Redirect console logging to stderr
         builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
 
-        var extractor = new Extractor(dllPaths);
-        var availableNamespaces = extractor.GetAvailableNamespaces();
+        // Register the new architecture components
+        var typeRegistry = new TypeRegistry();
+        typeRegistry.LoadAssemblies(dllPaths);
+        
+        var availableNamespaces = typeRegistry.GetAllNamespaces();
         var namespaceSummary = availableNamespaces.Any() 
             ? $"Loaded {availableNamespaces.Count} namespaces: {string.Join(", ", availableNamespaces.Take(5))}{(availableNamespaces.Count > 5 ? "..." : "")}"
             : "No namespaces loaded";
 
-        builder.Services.AddSingleton(extractor);
+        builder.Services.AddSingleton<ITypeRegistry>(typeRegistry);
+        builder.Services.AddSingleton<IMetadataRepository, MetadataRepository>();
+        builder.Services.AddSingleton<IMcpResponseFormatter, McpResponseFormatter>();
+        
+        // Keep Extractor for backward compatibility temporarily
+        builder.Services.AddSingleton(new Extractor(dllPaths));
+        
         builder.Services
             .AddMcpServer(server => { 
                 server.ServerInfo = new() { 
