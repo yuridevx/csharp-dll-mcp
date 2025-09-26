@@ -9,6 +9,7 @@ namespace McpNetDll.Registry;
 public class TypeRegistry : ITypeRegistry
 {
     private readonly List<TypeMetadata> _types = new();
+    private readonly XmlDocCommentIndex _xmlDocs = new();
     private readonly Dictionary<string, TypeMetadata> _typeMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<TypeMetadata>> _simpleNameMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<TypeMetadata>> _namespaceMap = new(StringComparer.OrdinalIgnoreCase);
@@ -18,10 +19,126 @@ public class TypeRegistry : ITypeRegistry
     {
         try
         {
-            var module = ModuleDefMD.Load(PathHelper.ConvertWslPath(assemblyPath));
+            var path = PathHelper.ConvertWslPath(assemblyPath);
+            var module = ModuleDefMD.Load(path);
+            // Load side-by-side XML docs if present
+            var xmlPath = System.IO.Path.ChangeExtension(path, ".xml");
+            _xmlDocs.AddFromXml(xmlPath);
             foreach (var type in module.Types.Where(t => t.IsPublic))
             {
                 var metadata = TypeMetadataFactory.CreateTypeMetadata(type);
+                // Enrich with XML docs
+                var fullTypeName = $"{metadata.Namespace}.{metadata.Name}";
+                var typeDoc = _xmlDocs.GetTypeDoc(fullTypeName);
+                if (!string.IsNullOrWhiteSpace(typeDoc))
+                {
+                    metadata = new TypeMetadata
+                    {
+                        Name = metadata.Name,
+                        Namespace = metadata.Namespace,
+                        TypeKind = metadata.TypeKind,
+                        Documentation = metadata.Documentation ?? typeDoc,
+                        MethodCount = metadata.MethodCount,
+                        PropertyCount = metadata.PropertyCount,
+                        FieldCount = metadata.FieldCount,
+                        EnumValues = metadata.EnumValues,
+                        StructLayout = metadata.StructLayout,
+                        Fields = metadata.Fields,
+                        Methods = metadata.Methods,
+                        Properties = metadata.Properties
+                    };
+                }
+                if (metadata.Methods != null)
+                {
+                    var newMethods = new List<MethodMetadata>(metadata.Methods.Count);
+                    foreach (var m in metadata.Methods)
+                    {
+                        var doc = _xmlDocs.GetMethodDoc(fullTypeName, m.Name);
+                        newMethods.Add(new MethodMetadata
+                        {
+                            Name = m.Name,
+                            ReturnType = m.ReturnType,
+                            Documentation = m.Documentation ?? doc,
+                            IsStatic = m.IsStatic,
+                            Parameters = m.Parameters
+                        });
+                    }
+                    metadata = new TypeMetadata
+                    {
+                        Name = metadata.Name,
+                        Namespace = metadata.Namespace,
+                        TypeKind = metadata.TypeKind,
+                        Documentation = metadata.Documentation,
+                        MethodCount = metadata.MethodCount,
+                        PropertyCount = metadata.PropertyCount,
+                        FieldCount = metadata.FieldCount,
+                        EnumValues = metadata.EnumValues,
+                        StructLayout = metadata.StructLayout,
+                        Fields = metadata.Fields,
+                        Methods = newMethods,
+                        Properties = metadata.Properties
+                    };
+                }
+                if (metadata.Properties != null)
+                {
+                    var newProps = new List<PropertyMetadata>(metadata.Properties.Count);
+                    foreach (var p in metadata.Properties)
+                    {
+                        var doc = _xmlDocs.GetPropertyDoc(fullTypeName, p.Name);
+                        newProps.Add(new PropertyMetadata
+                        {
+                            Name = p.Name,
+                            Type = p.Type,
+                            Documentation = p.Documentation ?? doc
+                        });
+                    }
+                    metadata = new TypeMetadata
+                    {
+                        Name = metadata.Name,
+                        Namespace = metadata.Namespace,
+                        TypeKind = metadata.TypeKind,
+                        Documentation = metadata.Documentation,
+                        MethodCount = metadata.MethodCount,
+                        PropertyCount = metadata.PropertyCount,
+                        FieldCount = metadata.FieldCount,
+                        EnumValues = metadata.EnumValues,
+                        StructLayout = metadata.StructLayout,
+                        Fields = metadata.Fields,
+                        Methods = metadata.Methods,
+                        Properties = newProps
+                    };
+                }
+                if (metadata.Fields != null)
+                {
+                    var newFields = new List<FieldMetadata>(metadata.Fields.Count);
+                    foreach (var f in metadata.Fields)
+                    {
+                        var doc = _xmlDocs.GetFieldDoc(fullTypeName, f.Name);
+                        newFields.Add(new FieldMetadata
+                        {
+                            Name = f.Name,
+                            Type = f.Type,
+                            Offset = f.Offset,
+                            IsStatic = f.IsStatic,
+                            Documentation = f.Documentation ?? doc
+                        });
+                    }
+                    metadata = new TypeMetadata
+                    {
+                        Name = metadata.Name,
+                        Namespace = metadata.Namespace,
+                        TypeKind = metadata.TypeKind,
+                        Documentation = metadata.Documentation,
+                        MethodCount = metadata.MethodCount,
+                        PropertyCount = metadata.PropertyCount,
+                        FieldCount = metadata.FieldCount,
+                        EnumValues = metadata.EnumValues,
+                        StructLayout = metadata.StructLayout,
+                        Fields = newFields,
+                        Methods = metadata.Methods,
+                        Properties = metadata.Properties
+                    };
+                }
                 RegisterType(metadata);
             }
         }

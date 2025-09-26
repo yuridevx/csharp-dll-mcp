@@ -18,6 +18,7 @@ public class TypeMetadata
     public required string Name { get; init; }
     public required string Namespace { get; init; }
     public required string TypeKind { get; init; }
+    public string? Documentation { get; init; }
     public int? MethodCount { get; init; }
     public int? PropertyCount { get; init; }
     public int? FieldCount { get; init; }
@@ -32,6 +33,8 @@ public class MethodMetadata
 {
     public required string Name { get; init; }
     public required string ReturnType { get; init; }
+    public string? Documentation { get; init; }
+    public bool IsStatic { get; init; }
     public required List<ParameterMetadata> Parameters { get; init; }
 }
 
@@ -39,6 +42,8 @@ public class PropertyMetadata
 {
     public required string Name { get; init; }
     public required string Type { get; init; }
+    public string? Documentation { get; init; }
+    public bool IsStatic { get; init; }
 }
 
 public class ParameterMetadata
@@ -58,6 +63,8 @@ public class FieldMetadata
     public required string Name { get; init; }
     public required string Type { get; init; }
     public int? Offset { get; init; }
+    public string? Documentation { get; init; }
+    public bool IsStatic { get; init; }
 }
 
 public class StructLayoutMetadata

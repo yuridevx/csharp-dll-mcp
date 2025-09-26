@@ -19,6 +19,7 @@ public static class TypeMetadataFactory
             Name = type.Name.String,
             Namespace = type.Namespace.String,
             TypeKind = GetTypeKind(type),
+            Documentation = GetDocumentation(type.CustomAttributes),
             MethodCount = filteredMethods.Count,
             PropertyCount = filteredProperties.Count,
             FieldCount = filteredFields?.Count,
@@ -52,6 +53,8 @@ public static class TypeMetadataFactory
             {
                 Name = m.Name,
                 ReturnType = m.ReturnType.FullName,
+                IsStatic = m.IsStatic,
+                Documentation = GetDocumentation(m.CustomAttributes),
                 Parameters = (m.HasThis ? m.Parameters.Skip(1) : m.Parameters)
                     .Select(p => new ParameterMetadata
                     {
@@ -71,7 +74,9 @@ public static class TypeMetadataFactory
             .Select(p => new PropertyMetadata
             {
                 Name = p.Name,
-                Type = p.PropertySig.GetRetType().FullName
+                Type = p.PropertySig.GetRetType().FullName,
+                Documentation = GetDocumentation(p.CustomAttributes),
+                IsStatic = (p.GetMethod?.IsStatic ?? false) || (p.SetMethod?.IsStatic ?? false)
             })
             .Where(pm => IdentifierMeaningFilter.HasMeaningfulName(pm.Name))
             .OrderBy(p => p.Name)
@@ -116,13 +121,106 @@ public static class TypeMetadataFactory
             {
                 Name = f.Name,
                 Type = f.FieldType.FullName,
-                Offset = (int?)f.FieldOffset
+                Offset = (int?)f.FieldOffset,
+                IsStatic = f.IsStatic,
+                Documentation = GetDocumentation(f.CustomAttributes)
             })
             .Where(fm => IdentifierMeaningFilter.HasMeaningfulName(fm.Name))
             .OrderBy(f => f.Name)
             .ToList();
             
         return fields.Any() ? fields : null;
+    }
+
+    private static string? GetDocumentation(dnlib.DotNet.CustomAttributeCollection attributes)
+    {
+        // Prefer Description, Display(Description/Name), then Obsolete message, then any single-string custom attribute
+        foreach (var attr in attributes)
+        {
+            var fullName = attr.AttributeType.FullName;
+            if (fullName == "System.ComponentModel.DescriptionAttribute")
+            {
+                var doc = GetCtorStringArg(attr) ?? GetNamedString(attr, "Description");
+                if (!string.IsNullOrWhiteSpace(doc)) return doc;
+            }
+            else if (fullName == "System.ComponentModel.DisplayNameAttribute")
+            {
+                var doc = GetCtorStringArg(attr) ?? GetNamedString(attr, "DisplayName");
+                if (!string.IsNullOrWhiteSpace(doc)) return doc;
+            }
+            else if (fullName == "System.ComponentModel.DataAnnotations.DisplayAttribute")
+            {
+                var doc = GetNamedString(attr, "Description") ?? GetNamedString(attr, "Name") ?? GetCtorStringArg(attr);
+                if (!string.IsNullOrWhiteSpace(doc)) return doc;
+            }
+            else if (fullName == "System.ObsoleteAttribute")
+            {
+                var doc = GetCtorStringArg(attr);
+                if (!string.IsNullOrWhiteSpace(doc)) return doc;
+            }
+            else if (fullName.EndsWith(".SummaryAttribute", System.StringComparison.Ordinal) ||
+                     fullName.EndsWith(".CommentAttribute", System.StringComparison.Ordinal) ||
+                     fullName.EndsWith(".DescriptionAttribute", System.StringComparison.Ordinal))
+            {
+                var doc = GetCtorStringArg(attr) ?? GetAnyNamedString(attr);
+                if (!string.IsNullOrWhiteSpace(doc)) return doc;
+            }
+        }
+
+        // Fallback: first attribute with a single string ctor/named value
+        foreach (var attr in attributes)
+        {
+            var doc = GetCtorStringArg(attr) ?? GetAnyNamedString(attr);
+            if (!string.IsNullOrWhiteSpace(doc)) return doc;
+        }
+
+        return null;
+    }
+
+    private static string? GetCtorStringArg(dnlib.DotNet.CustomAttribute attr)
+    {
+        if (attr.ConstructorArguments.Count > 0)
+        {
+            var arg = attr.ConstructorArguments[0].Value as string;
+            if (!string.IsNullOrWhiteSpace(arg)) return arg;
+        }
+        return null;
+    }
+
+    private static string? GetNamedString(dnlib.DotNet.CustomAttribute attr, string name)
+    {
+        foreach (var p in attr.Properties)
+        {
+            if (p.Name == name)
+            {
+                var v = p.Argument.Value as string;
+                if (!string.IsNullOrWhiteSpace(v)) return v;
+            }
+        }
+        foreach (var f in attr.Fields)
+        {
+            if (f.Name == name)
+            {
+                var v = f.Argument.Value as string;
+                if (!string.IsNullOrWhiteSpace(v)) return v;
+            }
+        }
+        return null;
+    }
+
+    private static string? GetAnyNamedString(dnlib.DotNet.CustomAttribute attr)
+    {
+        foreach (var p in attr.Properties)
+        {
+            var v = p.Argument.Value as string;
+            if (!string.IsNullOrWhiteSpace(v)) return v;
+        }
+        foreach (var f in attr.Fields)
+        {
+            var v = f.Argument.Value as string;
+            if (!string.IsNullOrWhiteSpace(v)) return v;
+        }
+        return null;
     }
 }
 
