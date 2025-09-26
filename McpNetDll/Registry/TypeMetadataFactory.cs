@@ -1,26 +1,40 @@
 using System.Collections.Generic;
 using System.Linq;
 using dnlib.DotNet;
+using McpNetDll.Helpers;
 
 namespace McpNetDll.Registry;
 
+/// <summary>
+/// Builds filtered <see cref="TypeMetadata"/> from dnlib <see cref="TypeDef"/>,
+/// excluding likely-obfuscated members based on an English word heuristic.
+/// </summary>
 public static class TypeMetadataFactory
 {
+    /// <summary>
+    /// Creates <see cref="TypeMetadata"/> for a given dnlib type, filtering out
+    /// methods/properties/fields/enum values with non-meaningful names.
+    /// </summary>
     public static TypeMetadata CreateTypeMetadata(TypeDef type)
     {
+        var filteredMethods = GetMethods(type);
+        var filteredProperties = GetProperties(type);
+        var filteredFields = !type.IsEnum ? GetFields(type) : null;
+        var filteredEnumValues = type.IsEnum ? GetEnumValues(type) : null;
+
         return new TypeMetadata
         {
             Name = type.Name.String,
             Namespace = type.Namespace.String,
             TypeKind = GetTypeKind(type),
-            MethodCount = type.Methods.Count(m => m.IsPublic && !m.IsSpecialName),
-            PropertyCount = type.Properties.Count(p => p.GetMethod?.IsPublic ?? p.SetMethod?.IsPublic ?? false),
-            FieldCount = GetFields(type)?.Count,
-            EnumValues = type.IsEnum ? GetEnumValues(type) : null,
-            Methods = GetMethods(type),
-            Properties = GetProperties(type),
+            MethodCount = filteredMethods.Count,
+            PropertyCount = filteredProperties.Count,
+            FieldCount = filteredFields?.Count,
+            EnumValues = filteredEnumValues,
+            Methods = filteredMethods,
+            Properties = filteredProperties,
             StructLayout = !type.IsEnum ? GetStructLayout(type) : null,
-            Fields = !type.IsEnum ? GetFields(type) : null
+            Fields = filteredFields
         };
     }
 
@@ -40,40 +54,50 @@ public static class TypeMetadataFactory
 
     private static List<MethodMetadata> GetMethods(TypeDef type)
     {
-        return type.Methods.Where(m => m.IsPublic && !m.IsSpecialName)
+        return type.Methods
+            .Where(m => m.IsPublic && !m.IsSpecialName)
             .Select(m => new MethodMetadata
             {
                 Name = m.Name,
                 ReturnType = m.ReturnType.FullName,
                 Parameters = (m.HasThis ? m.Parameters.Skip(1) : m.Parameters)
-                    .Select(p => new ParameterMetadata 
-                    { 
-                        Name = p.Name, 
-                        Type = p.Type.FullName 
+                    .Select(p => new ParameterMetadata
+                    {
+                        Name = p.Name,
+                        Type = p.Type.FullName
                     }).ToList()
-            }).OrderBy(m => m.Name).ToList();
+            })
+            .Where(mm => IdentifierMeaningFilter.HasMeaningfulName(mm.Name))
+            .OrderBy(m => m.Name)
+            .ToList();
     }
 
     private static List<PropertyMetadata> GetProperties(TypeDef type)
     {
-        return type.Properties.Where(p => p.GetMethod?.IsPublic ?? p.SetMethod?.IsPublic ?? false)
-            .Select(p => new PropertyMetadata 
-            { 
-                Name = p.Name, 
-                Type = p.PropertySig.GetRetType().FullName 
+        return type.Properties
+            .Where(p => p.GetMethod?.IsPublic ?? p.SetMethod?.IsPublic ?? false)
+            .Select(p => new PropertyMetadata
+            {
+                Name = p.Name,
+                Type = p.PropertySig.GetRetType().FullName
             })
-            .OrderBy(p => p.Name).ToList();
+            .Where(pm => IdentifierMeaningFilter.HasMeaningfulName(pm.Name))
+            .OrderBy(p => p.Name)
+            .ToList();
     }
 
     private static List<EnumValueMetadata>? GetEnumValues(TypeDef type)
     {
-        return type.IsEnum 
-            ? type.Fields.Where(f => f.IsPublic && f.IsStatic && f.IsLiteral)
-                .Select(f => new EnumValueMetadata 
-                { 
-                    Name = f.Name.String, 
-                    Value = f.Constant.Value?.ToString() 
-                }).ToList()
+        return type.IsEnum
+            ? type.Fields
+                .Where(f => f.IsPublic && f.IsStatic && f.IsLiteral)
+                .Select(f => new EnumValueMetadata
+                {
+                    Name = f.Name.String,
+                    Value = f.Constant.Value?.ToString()
+                })
+                .Where(ev => IdentifierMeaningFilter.HasMeaningfulName(ev.Name))
+                .ToList()
             : null;
     }
 
@@ -96,13 +120,15 @@ public static class TypeMetadataFactory
         var fields = type.Fields
             .Where(f => !f.IsStatic && !f.CustomAttributes
                 .Any(a => a.TypeFullName == "System.Runtime.CompilerServices.CompilerGeneratedAttribute"))
-            .Select(f => new FieldMetadata 
-            { 
-                Name = f.Name, 
-                Type = f.FieldType.FullName, 
-                Offset = (int?)f.FieldOffset 
+            .Select(f => new FieldMetadata
+            {
+                Name = f.Name,
+                Type = f.FieldType.FullName,
+                Offset = (int?)f.FieldOffset
             })
-            .OrderBy(f => f.Name).ToList();
+            .Where(fm => IdentifierMeaningFilter.HasMeaningfulName(fm.Name))
+            .OrderBy(f => f.Name)
+            .ToList();
             
         return fields.Any() ? fields : null;
     }
