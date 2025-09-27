@@ -9,4 +9,16 @@
     <ItemGroup>
         <ProjectReference Include="..\McpNetDll.Core\McpNetDll.Core.csproj"/>
     </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Pages\Shared\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Pages\Index.cshtml.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Remove="Pages\Index.cshtml" />
+    </ItemGroup>
 </Project>
