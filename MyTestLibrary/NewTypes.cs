@@ -5,14 +5,11 @@ namespace MyTestLibrary;
 [StructLayout(LayoutKind.Explicit, Pack = 1, Size = 8)]
 public struct MyExplicitStruct
 {
-    [FieldOffset(0)]
-    public long AllBits;
+    [FieldOffset(0)] public long AllBits;
 
-    [FieldOffset(0)]
-    public int Int1;
+    [FieldOffset(0)] public int Int1;
 
-    [FieldOffset(4)]
-    public int Int2;
+    [FieldOffset(4)] public int Int2;
 }
 
 public interface IMyInterface

@@ -1,17 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Xml.Linq;
 
 namespace McpNetDll.Helpers;
 
 public class XmlDocCommentIndex
 {
-    private readonly Dictionary<string, string> _typeDocs = new(StringComparer.Ordinal);
-    private readonly Dictionary<(string type, string name), string> _propDocs = new();
     private readonly Dictionary<(string type, string name), string> _fieldDocs = new();
     private readonly Dictionary<(string type, string name), string> _methodDocs = new();
+    private readonly Dictionary<(string type, string name), string> _propDocs = new();
+    private readonly Dictionary<string, string> _typeDocs = new(StringComparer.Ordinal);
 
     public void AddFromXml(string xmlPath)
     {
@@ -64,14 +60,30 @@ public class XmlDocCommentIndex
         }
     }
 
-    public string? GetTypeDoc(string fullTypeName) => _typeDocs.TryGetValue(fullTypeName, out var d) ? d : null;
-    public string? GetPropertyDoc(string fullTypeName, string propertyName) => _propDocs.TryGetValue((fullTypeName, propertyName), out var d) ? d : null;
-    public string? GetFieldDoc(string fullTypeName, string fieldName) => _fieldDocs.TryGetValue((fullTypeName, fieldName), out var d) ? d : null;
-    public string? GetMethodDoc(string fullTypeName, string methodName) => _methodDocs.TryGetValue((fullTypeName, methodName), out var d) ? d : null;
+    public string? GetTypeDoc(string fullTypeName)
+    {
+        return _typeDocs.TryGetValue(fullTypeName, out var d) ? d : null;
+    }
+
+    public string? GetPropertyDoc(string fullTypeName, string propertyName)
+    {
+        return _propDocs.TryGetValue((fullTypeName, propertyName), out var d) ? d : null;
+    }
+
+    public string? GetFieldDoc(string fullTypeName, string fieldName)
+    {
+        return _fieldDocs.TryGetValue((fullTypeName, fieldName), out var d) ? d : null;
+    }
+
+    public string? GetMethodDoc(string fullTypeName, string methodName)
+    {
+        return _methodDocs.TryGetValue((fullTypeName, methodName), out var d) ? d : null;
+    }
 
     private static void ParseMember(string value, out string? typeFull, out string? memberName)
     {
-        typeFull = null; memberName = null;
+        typeFull = null;
+        memberName = null;
         if (string.IsNullOrWhiteSpace(value)) return;
         var lastDot = value.LastIndexOf('.');
         if (lastDot <= 0 || lastDot >= value.Length - 1) return;
@@ -81,9 +93,8 @@ public class XmlDocCommentIndex
 
     private static string Normalize(string s)
     {
-        return string.Join(" ", s.Split(new[] { '\r', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()))
+        return string.Join(" ",
+                s.Split(new[] { '\r', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()))
             .Trim();
     }
 }
-
-

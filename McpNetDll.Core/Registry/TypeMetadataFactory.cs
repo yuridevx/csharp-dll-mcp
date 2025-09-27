@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using dnlib.DotNet;
 using McpNetDll.Helpers;
 
@@ -31,19 +29,22 @@ public static class TypeMetadataFactory
         };
     }
 
-    private static string GetTypeKind(TypeDef type) => type switch
+    private static string GetTypeKind(TypeDef type)
     {
-        _ when type.IsEnum => "enum",
-        _ when type.IsPrimitive => "primitive",
-        _ when type.BaseType?.FullName == "System.MulticastDelegate" => "delegate",
-        _ when type.IsValueType => "struct",
-        _ when type.IsInterface => "interface",
-        _ when type.IsAbstract && type.IsSealed => "static class",
-        _ when type.IsAbstract => "abstract class",
-        _ when type.IsSealed => "sealed class",
-        _ when type.IsClass => "class",
-        _ => "other"
-    };
+        return type switch
+        {
+            _ when type.IsEnum => "enum",
+            _ when type.IsPrimitive => "primitive",
+            _ when type.BaseType?.FullName == "System.MulticastDelegate" => "delegate",
+            _ when type.IsValueType => "struct",
+            _ when type.IsInterface => "interface",
+            _ when type.IsAbstract && type.IsSealed => "static class",
+            _ when type.IsAbstract => "abstract class",
+            _ when type.IsSealed => "sealed class",
+            _ when type.IsClass => "class",
+            _ => "other"
+        };
+    }
 
     private static List<MethodMetadata> GetMethods(TypeDef type)
     {
@@ -100,8 +101,8 @@ public static class TypeMetadataFactory
 
     private static StructLayoutMetadata? GetStructLayout(TypeDef type)
     {
-        return type.ClassLayout is null 
-            ? null 
+        return type.ClassLayout is null
+            ? null
             : new StructLayoutMetadata
             {
                 Kind = type.IsExplicitLayout ? "Explicit" : type.IsSequentialLayout ? "Sequential" : "Auto",
@@ -113,7 +114,7 @@ public static class TypeMetadataFactory
     private static List<FieldMetadata>? GetFields(TypeDef type)
     {
         if (type.IsEnum) return null;
-        
+
         var fields = type.Fields
             .Where(f => !f.CustomAttributes
                 .Any(a => a.TypeFullName == "System.Runtime.CompilerServices.CompilerGeneratedAttribute"))
@@ -128,11 +129,11 @@ public static class TypeMetadataFactory
             .Where(fm => IdentifierMeaningFilter.HasMeaningfulName(fm.Name))
             .OrderBy(f => f.Name)
             .ToList();
-            
+
         return fields.Any() ? fields : null;
     }
 
-    private static string? GetDocumentation(dnlib.DotNet.CustomAttributeCollection attributes)
+    private static string? GetDocumentation(CustomAttributeCollection attributes)
     {
         // Prefer Description, Display(Description/Name), then Obsolete message, then any single-string custom attribute
         foreach (var attr in attributes)
@@ -158,9 +159,9 @@ public static class TypeMetadataFactory
                 var doc = GetCtorStringArg(attr);
                 if (!string.IsNullOrWhiteSpace(doc)) return doc;
             }
-            else if (fullName.EndsWith(".SummaryAttribute", System.StringComparison.Ordinal) ||
-                     fullName.EndsWith(".CommentAttribute", System.StringComparison.Ordinal) ||
-                     fullName.EndsWith(".DescriptionAttribute", System.StringComparison.Ordinal))
+            else if (fullName.EndsWith(".SummaryAttribute", StringComparison.Ordinal) ||
+                     fullName.EndsWith(".CommentAttribute", StringComparison.Ordinal) ||
+                     fullName.EndsWith(".DescriptionAttribute", StringComparison.Ordinal))
             {
                 var doc = GetCtorStringArg(attr) ?? GetAnyNamedString(attr);
                 if (!string.IsNullOrWhiteSpace(doc)) return doc;
@@ -177,51 +178,50 @@ public static class TypeMetadataFactory
         return null;
     }
 
-    private static string? GetCtorStringArg(dnlib.DotNet.CustomAttribute attr)
+    private static string? GetCtorStringArg(CustomAttribute attr)
     {
         if (attr.ConstructorArguments.Count > 0)
         {
             var arg = attr.ConstructorArguments[0].Value as string;
             if (!string.IsNullOrWhiteSpace(arg)) return arg;
         }
+
         return null;
     }
 
-    private static string? GetNamedString(dnlib.DotNet.CustomAttribute attr, string name)
+    private static string? GetNamedString(CustomAttribute attr, string name)
     {
         foreach (var p in attr.Properties)
-        {
             if (p.Name == name)
             {
                 var v = p.Argument.Value as string;
                 if (!string.IsNullOrWhiteSpace(v)) return v;
             }
-        }
+
         foreach (var f in attr.Fields)
-        {
             if (f.Name == name)
             {
                 var v = f.Argument.Value as string;
                 if (!string.IsNullOrWhiteSpace(v)) return v;
             }
-        }
+
         return null;
     }
 
-    private static string? GetAnyNamedString(dnlib.DotNet.CustomAttribute attr)
+    private static string? GetAnyNamedString(CustomAttribute attr)
     {
         foreach (var p in attr.Properties)
         {
             var v = p.Argument.Value as string;
             if (!string.IsNullOrWhiteSpace(v)) return v;
         }
+
         foreach (var f in attr.Fields)
         {
             var v = f.Argument.Value as string;
             if (!string.IsNullOrWhiteSpace(v)) return v;
         }
+
         return null;
     }
 }
-
-

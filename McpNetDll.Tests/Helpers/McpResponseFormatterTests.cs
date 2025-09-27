@@ -1,11 +1,8 @@
-using System.Collections.Generic;
 using System.Text.Json;
-using McpNetDll;
 using McpNetDll.Helpers;
 using McpNetDll.Registry;
 using McpNetDll.Repository;
 using Moq;
-using Xunit;
 
 namespace McpNetDll.Tests.Helpers;
 
@@ -45,9 +42,9 @@ public class McpResponseFormatterTests
 
         var result = new NamespaceQueryResult
         {
-            Namespaces = new List<NamespaceInfo>
+            Namespaces = new List<NamespaceMetadata>
             {
-                new() { Name = "Namespace1", TypeCount = 2, Types = new List<TypeSummary>() }
+                new() { Name = "Namespace1", TypeCount = 2, Types = new List<TypeMetadata>() }
             },
             Pagination = new PaginationInfo { Total = 1, Limit = 50, Offset = 0 }
         };
@@ -68,15 +65,12 @@ public class McpResponseFormatterTests
         var formatter = CreateFormatter();
         var mockRegistry = CreateMockRegistry();
         var namespaces = new List<string>();
-        for (int i = 1; i <= 15; i++)
-        {
-            namespaces.Add($"Namespace{i}");
-        }
+        for (var i = 1; i <= 15; i++) namespaces.Add($"Namespace{i}");
         mockRegistry.Setup(r => r.GetAllNamespaces()).Returns(namespaces);
 
         var result = new NamespaceQueryResult
         {
-            Namespaces = new List<NamespaceInfo>(),
+            Namespaces = new List<NamespaceMetadata>(),
             Pagination = new PaginationInfo { Total = 15, Limit = 50, Offset = 0 }
         };
 
@@ -187,7 +181,7 @@ public class McpResponseFormatterTests
 
         var result = new NamespaceQueryResult
         {
-            Namespaces = new List<NamespaceInfo>(),
+            Namespaces = new List<NamespaceMetadata>(),
             Pagination = new PaginationInfo { Total = 0, Limit = 50, Offset = 0 }
         };
 
@@ -208,13 +202,13 @@ public class McpResponseFormatterTests
 
         var result = new NamespaceQueryResult
         {
-            Namespaces = new List<NamespaceInfo>
+            Namespaces = new List<NamespaceMetadata>
             {
-                new() 
-                { 
-                    Name = "Test.Namespace", 
-                    TypeCount = 1, 
-                    Types = new List<TypeSummary>
+                new()
+                {
+                    Name = "Test.Namespace",
+                    TypeCount = 1,
+                    Types = new List<TypeMetadata>
                     {
                         new() { Name = "TestClass", Namespace = "Test.Namespace", TypeKind = "class" }
                     }

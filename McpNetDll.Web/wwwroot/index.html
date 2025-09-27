@@ -1,319 +1,418 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>McpNetDll - DLL Browser</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; }
-    header { padding: 12px 16px; background: #0f172a; color: #fff; }
-    main { display: grid; grid-template-columns: 280px 320px 1fr; height: calc(100vh - 52px); }
-    aside { border-right: 1px solid #e5e7eb; padding: 12px; overflow: auto; }
-    section { padding: 12px; overflow: auto; }
-    input, button { padding: 8px; font-size: 14px; }
-    .ns { font-weight: 600; margin-top: 8px; cursor: pointer; }
-    .type { margin: 4px 0; color: #334155; cursor: pointer; }
-    pre { background: #0b1020; color: #e5e7eb; padding: 12px; border-radius: 8px; overflow: auto; }
-    .row { display:flex; gap:8px; align-items:center; }
-    .error { color: #b91c1c; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; }
-    th { background: #f8fafc; }
-    .doc { color:#475569; margin: 6px 0 12px; white-space: pre-wrap; }
-    .muted { color:#64748b; font-size:12px; }
-  </style>
-  <script>
-    let nsLimit = 50, nsOffset = 0;
-    let selectedNamespace = null;
-    let selectedTypeFullName = null;
-    let knownTypes = new Set();
-    let searchTimer = null;
-
-    async function loadNamespaces() {
-      const treeRes = await fetch('/api/namespaces/list');
-      const names = await treeRes.json();
-      const namesOut = document.getElementById('nsTree');
-      namesOut.innerHTML = '';
-      const root = {};
-      (names || []).forEach(ns => {
-        const parts = ns.split('.');
-        let cur = root;
-        for (const p of parts) {
-          cur[p] = cur[p] || {};
-          cur = cur[p];
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
+    <title>McpNetDll - DLL Browser</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            margin: 0;
         }
-      });
-      function render(node, path, container) {
-        const ul = document.createElement('ul');
-        ul.style.listStyle = 'none';
-        ul.style.paddingLeft = '12px';
-        const keys = Object.keys(node).sort();
-        keys.forEach(k => {
-          const full = path ? path + '.' + k : k;
-          const li = document.createElement('li');
-          const a = document.createElement('a');
-          a.textContent = k;
-          a.href = '#ns=' + encodeURIComponent(full);
-          li.appendChild(a);
-          ul.appendChild(li);
-          render(node[k], full, li);
+
+        header {
+            padding: 12px 16px;
+            background: #0f172a;
+            color: #fff;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 280px 320px 1fr;
+            height: calc(100vh - 52px);
+        }
+
+        aside {
+            border-right: 1px solid #e5e7eb;
+            padding: 12px;
+            overflow: auto;
+        }
+
+        section {
+            padding: 12px;
+            overflow: auto;
+        }
+
+        input, button {
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        .ns {
+            font-weight: 600;
+            margin-top: 8px;
+            cursor: pointer;
+        }
+
+        .type {
+            margin: 4px 0;
+            color: #334155;
+            cursor: pointer;
+        }
+
+        pre {
+            background: #0b1020;
+            color: #e5e7eb;
+            padding: 12px;
+            border-radius: 8px;
+            overflow: auto;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .error {
+            color: #b91c1c;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #f8fafc;
+        }
+
+        .doc {
+            color: #475569;
+            margin: 6px 0 12px;
+            white-space: pre-wrap;
+        }
+
+        .muted {
+            color: #64748b;
+            font-size: 12px;
+        }
+    </style>
+    <script>
+        let nsLimit = 50, nsOffset = 0;
+        let selectedNamespace = null;
+        let selectedTypeFullName = null;
+        let knownTypes = new Set();
+        let searchTimer = null;
+
+        async function loadNamespaces() {
+            const treeRes = await fetch('/api/namespaces/list');
+            const names = await treeRes.json();
+            const namesOut = document.getElementById('nsTree');
+            namesOut.innerHTML = '';
+            const root = {};
+            (names || []).forEach(ns => {
+                const parts = ns.split('.');
+                let cur = root;
+                for (const p of parts) {
+                    cur[p] = cur[p] || {};
+                    cur = cur[p];
+                }
+            });
+
+            function render(node, path, container) {
+                const ul = document.createElement('ul');
+                ul.style.listStyle = 'none';
+                ul.style.paddingLeft = '12px';
+                const keys = Object.keys(node).sort();
+                keys.forEach(k => {
+                    const full = path ? path + '.' + k : k;
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.textContent = k;
+                    a.href = '#ns=' + encodeURIComponent(full);
+                    li.appendChild(a);
+                    ul.appendChild(li);
+                    render(node[k], full, li);
+                });
+                container.appendChild(ul);
+            }
+
+            render(root, '', namesOut);
+
+            // Also load paged namespaces+types for right list
+            const url = new URL('/api/namespaces', location.origin);
+            url.searchParams.set('limit', nsLimit);
+            url.searchParams.set('offset', nsOffset);
+            const res = await fetch(url);
+            const json = await res.json();
+            const list = document.getElementById('types');
+            list.innerHTML = '';
+            (json.Namespaces || []).forEach(ns => {
+                const nsHdr = document.createElement('div');
+                nsHdr.className = 'ns';
+                nsHdr.textContent = ns.Name + ' (' + ns.TypeCount + ')';
+                list.appendChild(nsHdr);
+                (ns.Types || []).forEach(t => {
+                    const tEl = document.createElement('div');
+                    tEl.className = 'type';
+                    tEl.textContent = t.Name + ' [' + t.TypeKind + ']';
+                    tEl.onclick = () => {
+                        location.hash = '#type=' + encodeURIComponent(t.Namespace + '.' + t.Name);
+                    };
+                    list.appendChild(tEl);
+                });
+            });
+            // Update types summary based on what is actually displayed
+            const typesDisplayed = (json.Namespaces || []).reduce((n, ns) => n + ((ns.Types || []).length), 0);
+            const typesSummary = document.getElementById('typesSummary');
+            typesSummary.textContent = `Showing ${typesDisplayed} types`;
+            const pager = document.getElementById('pager');
+            pager.innerHTML = '';
+            if (json.Pagination) {
+                const {Total, Limit, Offset, HasMore} = json.Pagination;
+                const info = document.createElement('span');
+                info.textContent = `Namespaces ${Total}, showing ${Offset + 1}-${Math.min(Offset + Limit, Total)}`;
+                pager.appendChild(info);
+                const prev = document.createElement('button');
+                prev.textContent = 'Prev';
+                prev.disabled = Offset <= 0;
+                prev.onclick = () => {
+                    nsOffset = Math.max(0, Offset - Limit);
+                    loadNamespaces();
+                };
+                pager.appendChild(prev);
+                const next = document.createElement('button');
+                next.textContent = 'Next';
+                next.disabled = !HasMore;
+                next.onclick = () => {
+                    nsOffset = Offset + Limit;
+                    loadNamespaces();
+                };
+                pager.appendChild(next);
+            }
+        }
+
+        async function selectType(fullName) {
+            selectedTypeFullName = fullName;
+            const url = new URL('/api/types', location.origin);
+            url.searchParams.append('typeNames', fullName);
+            const res = await fetch(url);
+            const json = await res.json();
+            renderType(json);
+        }
+
+        async function searchRealtime() {
+            const pattern = (document.getElementById('q').value || '').trim();
+            if (!pattern) {
+                return;
+            }
+            const url = new URL('/api/search', location.origin);
+            url.searchParams.set('pattern', pattern);
+            const res = await fetch(url);
+            const json = await res.json();
+            renderSearch(json);
+        }
+
+        function htmlEscape(s) {
+            return (s || '').replace(/[&<>\"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+        }
+
+        function renderType(json) {
+            const out = document.getElementById('output');
+            if (json.error) {
+                out.innerHTML = `<div class="error">${json.error}</div>`;
+                return;
+            }
+            const types = json.Types || [];
+            if (!types.length) {
+                out.textContent = 'No types';
+                return;
+            }
+            const t = types[0];
+            let html = '';
+            html += `<h3>${htmlEscape(t.Namespace)}.${htmlEscape(t.Name)} <small>[${htmlEscape(t.TypeKind)}]</small></h3>`;
+            if (t.Documentation) {
+                html += `<div class="doc">${htmlEscape(t.Documentation)}</div>`;
+            }
+            if (t.Properties && t.Properties.length) {
+                const inst = t.Properties.filter(p => !p.IsStatic);
+                const stat = t.Properties.filter(p => p.IsStatic);
+                if (inst.length) {
+                    html += '<h4>Instance Properties</h4><table><tr><th>Name</th><th>Type</th><th>Doc</th></tr>';
+                    inst.forEach(p => html += `<tr><td>${htmlEscape(p.Name)}</td><td>${renderTypeRef(p.Type)}</td><td>${htmlEscape(p.Documentation || '')}</td></tr>`);
+                    html += '</table>';
+                }
+                if (stat.length) {
+                    html += '<h4>Static Properties</h4><table><tr><th>Name</th><th>Type</th><th>Doc</th></tr>';
+                    stat.forEach(p => html += `<tr><td>${htmlEscape(p.Name)}</td><td>${renderTypeRef(p.Type)}</td><td>${htmlEscape(p.Documentation || '')}</td></tr>`);
+                    html += '</table>';
+                }
+                html += '</table>';
+            }
+            if (t.Methods && t.Methods.length) {
+                html += '<h4>Methods</h4><table><tr><th>Name</th><th>Return</th><th>Parameters</th><th>Static</th><th>Doc</th></tr>';
+                t.Methods.forEach(m => {
+                    const prm = (m.Parameters || []).map(p => `${renderTypeRef(p.Type)} ${htmlEscape(p.Name)}`.trim()).join(', ');
+                    html += `<tr><td>${htmlEscape(m.Name)}</td><td>${renderTypeRef(m.ReturnType)}</td><td>${prm}</td><td>${m.IsStatic ? 'yes' : ''}</td><td>${htmlEscape(m.Documentation || '')}</td></tr>`;
+                });
+                html += '</table>';
+            }
+            if (t.EnumValues && t.EnumValues.length) {
+                html += '<h4>Enum Values</h4><table><tr><th>Name</th><th>Value</th></tr>';
+                t.EnumValues.forEach(ev => html += `<tr><td>${htmlEscape(ev.Name)}</td><td>${htmlEscape(ev.Value ?? '')}</td></tr>`);
+                html += '</table>';
+            }
+            if (t.Fields && t.Fields.length) {
+                html += '<h4>Fields</h4><table><tr><th>Name</th><th>Type</th><th>Offset</th><th>Static</th><th>Doc</th></tr>';
+                t.Fields.forEach(f => html += `<tr><td>${htmlEscape(f.Name)}</td><td>${renderTypeRef(f.Type)}</td><td>${f.Offset ?? ''}</td><td>${f.IsStatic ? 'yes' : ''}</td><td>${htmlEscape(f.Documentation || '')}</td></tr>`);
+                html += '</table>';
+            }
+            out.innerHTML = html;
+        }
+
+        function renderTypeRef(typeName) {
+            const full = String(typeName || '');
+            // If we can split into namespace + name, make it clickable
+            const lastDot = full.lastIndexOf('.');
+            if (lastDot > 0) {
+                const ns = full.substring(0, lastDot);
+                const name = full.substring(lastDot + 1);
+                if (knownTypes.has(full)) {
+                    const href = `#type=${encodeURIComponent(full)}`;
+                    return `<a href="${href}">${htmlEscape(full)}</a>`;
+                }
+            }
+            return htmlEscape(full);
+        }
+
+        function renderSearch(json) {
+            const out = document.getElementById('output');
+            if (json.error) {
+                out.innerHTML = `<div class="error">${json.error}</div>`;
+                return;
+            }
+            const results = json.Results || [];
+            if (!results.length) {
+                out.textContent = 'No results';
+                return;
+            }
+            let html = `<h3>${htmlEscape(json.Summary || 'Results')}</h3>`;
+            html += '<table><tr><th>Kind</th><th>Name</th><th>Parent Type</th><th>Detail</th></tr>';
+            results.forEach(r => {
+                const parent = r.ParentType || r.FullName || '';
+                const parentLink = (parent && knownTypes.has(parent)) ? `<a href="#type=${encodeURIComponent(parent)}">${htmlEscape(parent)}</a>` : htmlEscape(parent);
+                let nameCell;
+                if (r.ElementType === 'Type' && r.FullName && knownTypes.has(r.FullName)) {
+                    nameCell = `<a href="#type=${encodeURIComponent(r.FullName)}">${htmlEscape(r.Name)}</a>`;
+                } else if (parent && knownTypes.has(parent)) {
+                    nameCell = `<a href="#type=${encodeURIComponent(parent)}">${htmlEscape(r.Name)}</a>`;
+                } else {
+                    nameCell = htmlEscape(r.Name);
+                }
+                const detailRaw = r.ReturnType || r.PropertyType || r.FieldType || r.Value || '';
+                const detail = renderTypeRef(detailRaw);
+                html += `<tr><td>${htmlEscape(r.ElementType)}</td><td>${nameCell}</td><td>${parentLink}</td><td>${detail}</td></tr>`;
+            });
+            html += '</table>';
+            out.innerHTML = html;
+        }
+
+        function selectNamespace(ns) {
+            selectedNamespace = ns;
+            // Filter types list to this namespace
+            const url = new URL('/api/namespaces', location.origin);
+            url.searchParams.append('namespaces', ns);
+            fetch(url).then(r => r.json()).then(json => {
+                const list = document.getElementById('types');
+                list.innerHTML = '';
+                (json.Namespaces || []).forEach(ns => {
+                    const nsHdr = document.createElement('div');
+                    nsHdr.className = 'ns';
+                    nsHdr.textContent = ns.Name + ' (' + ns.TypeCount + ')';
+                    list.appendChild(nsHdr);
+                    (ns.Types || []).forEach(t => {
+                        const tEl = document.createElement('div');
+                        tEl.className = 'type';
+                        tEl.textContent = t.Name + ' [' + t.TypeKind + ']';
+                        tEl.onclick = () => {
+                            location.hash = '#type=' + encodeURIComponent(t.Namespace + '.' + t.Name);
+                        };
+                        list.appendChild(tEl);
+                    });
+                    // Summary for filtered namespace
+                    const typesSummary = document.getElementById('typesSummary');
+                    typesSummary.textContent = `Total ${ns.TypeCount}, showing 1-${(ns.Types || []).length}`;
+                    // Hide pager when a specific namespace is selected
+                    const pager = document.getElementById('pager');
+                    pager.innerHTML = '';
+                });
+            });
+        }
+
+        function handleHash() {
+            const hash = location.hash.slice(1);
+            const params = new URLSearchParams(hash);
+            const ns = params.get('ns');
+            const type = params.get('type');
+            if (ns) selectNamespace(decodeURIComponent(ns));
+            if (type) selectType(decodeURIComponent(type));
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch('/api/types/list');
+                const arr = await res.json();
+                knownTypes = new Set(arr || []);
+            } catch {
+            }
+            await loadNamespaces();
+            handleHash();
+            const q = document.getElementById('q');
+            q.addEventListener('input', () => {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(searchRealtime, 250);
+            });
         });
-        container.appendChild(ul);
-      }
-      render(root, '', namesOut);
-
-      // Also load paged namespaces+types for right list
-      const url = new URL('/api/namespaces', location.origin);
-      url.searchParams.set('limit', nsLimit);
-      url.searchParams.set('offset', nsOffset);
-      const res = await fetch(url);
-      const json = await res.json();
-      const list = document.getElementById('types');
-      list.innerHTML = '';
-      (json.Namespaces || []).forEach(ns => {
-        const nsHdr = document.createElement('div');
-        nsHdr.className = 'ns';
-        nsHdr.textContent = ns.Name + ' (' + ns.TypeCount + ')';
-        list.appendChild(nsHdr);
-        (ns.Types || []).forEach(t => {
-          const tEl = document.createElement('div');
-          tEl.className = 'type';
-          tEl.textContent = t.Name + ' [' + t.TypeKind + ']';
-          tEl.onclick = () => { location.hash = '#type=' + encodeURIComponent(t.Namespace + '.' + t.Name); };
-          list.appendChild(tEl);
-        });
-      });
-      // Update types summary based on what is actually displayed
-      const typesDisplayed = (json.Namespaces || []).reduce((n, ns) => n + ((ns.Types||[]).length), 0);
-      const typesSummary = document.getElementById('typesSummary');
-      typesSummary.textContent = `Showing ${typesDisplayed} types`;
-      const pager = document.getElementById('pager');
-      pager.innerHTML = '';
-      if (json.Pagination) {
-        const { Total, Limit, Offset, HasMore } = json.Pagination;
-        const info = document.createElement('span');
-        info.textContent = `Namespaces ${Total}, showing ${Offset + 1}-${Math.min(Offset + Limit, Total)}`;
-        pager.appendChild(info);
-        const prev = document.createElement('button');
-        prev.textContent = 'Prev';
-        prev.disabled = Offset <= 0;
-        prev.onclick = () => { nsOffset = Math.max(0, Offset - Limit); loadNamespaces(); };
-        pager.appendChild(prev);
-        const next = document.createElement('button');
-        next.textContent = 'Next';
-        next.disabled = !HasMore;
-        next.onclick = () => { nsOffset = Offset + Limit; loadNamespaces(); };
-        pager.appendChild(next);
-      }
-    }
-
-    async function selectType(fullName) {
-      selectedTypeFullName = fullName;
-      const url = new URL('/api/types', location.origin);
-      url.searchParams.append('typeNames', fullName);
-      const res = await fetch(url);
-      const json = await res.json();
-      renderType(json);
-    }
-
-    async function searchRealtime() {
-      const pattern = (document.getElementById('q').value || '').trim();
-      if (!pattern) { return; }
-      const url = new URL('/api/search', location.origin);
-      url.searchParams.set('pattern', pattern);
-      const res = await fetch(url);
-      const json = await res.json();
-      renderSearch(json);
-    }
-
-    function htmlEscape(s) {
-      return (s||'').replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-    }
-
-    function renderType(json) {
-      const out = document.getElementById('output');
-      if (json.error) { out.innerHTML = `<div class="error">${json.error}</div>`; return; }
-      const types = json.Types || [];
-      if (!types.length) { out.textContent = 'No types'; return; }
-      const t = types[0];
-      let html = '';
-      html += `<h3>${htmlEscape(t.Namespace)}.${htmlEscape(t.Name)} <small>[${htmlEscape(t.TypeKind)}]</small></h3>`;
-      if (t.Documentation) {
-        html += `<div class="doc">${htmlEscape(t.Documentation)}</div>`;
-      }
-      if (t.Properties && t.Properties.length) {
-        const inst = t.Properties.filter(p => !p.IsStatic);
-        const stat = t.Properties.filter(p => p.IsStatic);
-        if (inst.length) {
-          html += '<h4>Instance Properties</h4><table><tr><th>Name</th><th>Type</th><th>Doc</th></tr>';
-          inst.forEach(p => html += `<tr><td>${htmlEscape(p.Name)}</td><td>${renderTypeRef(p.Type)}</td><td>${htmlEscape(p.Documentation||'')}</td></tr>`);
-          html += '</table>';
-        }
-        if (stat.length) {
-          html += '<h4>Static Properties</h4><table><tr><th>Name</th><th>Type</th><th>Doc</th></tr>';
-          stat.forEach(p => html += `<tr><td>${htmlEscape(p.Name)}</td><td>${renderTypeRef(p.Type)}</td><td>${htmlEscape(p.Documentation||'')}</td></tr>`);
-          html += '</table>';
-        }
-        html += '</table>';
-      }
-      if (t.Methods && t.Methods.length) {
-        html += '<h4>Methods</h4><table><tr><th>Name</th><th>Return</th><th>Parameters</th><th>Static</th><th>Doc</th></tr>';
-        t.Methods.forEach(m => {
-          const prm = (m.Parameters||[]).map(p => `${renderTypeRef(p.Type)} ${htmlEscape(p.Name)}`.trim()).join(', ');
-          html += `<tr><td>${htmlEscape(m.Name)}</td><td>${renderTypeRef(m.ReturnType)}</td><td>${prm}</td><td>${m.IsStatic ? 'yes' : ''}</td><td>${htmlEscape(m.Documentation||'')}</td></tr>`;
-        });
-        html += '</table>';
-      }
-      if (t.EnumValues && t.EnumValues.length) {
-        html += '<h4>Enum Values</h4><table><tr><th>Name</th><th>Value</th></tr>';
-        t.EnumValues.forEach(ev => html += `<tr><td>${htmlEscape(ev.Name)}</td><td>${htmlEscape(ev.Value ?? '')}</td></tr>`);
-        html += '</table>';
-      }
-      if (t.Fields && t.Fields.length) {
-        html += '<h4>Fields</h4><table><tr><th>Name</th><th>Type</th><th>Offset</th><th>Static</th><th>Doc</th></tr>';
-        t.Fields.forEach(f => html += `<tr><td>${htmlEscape(f.Name)}</td><td>${renderTypeRef(f.Type)}</td><td>${f.Offset ?? ''}</td><td>${f.IsStatic ? 'yes' : ''}</td><td>${htmlEscape(f.Documentation||'')}</td></tr>`);
-        html += '</table>';
-      }
-      out.innerHTML = html;
-    }
-
-    function renderTypeRef(typeName) {
-      const full = String(typeName||'');
-      // If we can split into namespace + name, make it clickable
-      const lastDot = full.lastIndexOf('.');
-      if (lastDot > 0) {
-        const ns = full.substring(0, lastDot);
-        const name = full.substring(lastDot + 1);
-        if (knownTypes.has(full)) {
-          const href = `#type=${encodeURIComponent(full)}`;
-          return `<a href="${href}">${htmlEscape(full)}</a>`;
-        }
-      }
-      return htmlEscape(full);
-    }
-
-    function renderSearch(json) {
-      const out = document.getElementById('output');
-      if (json.error) { out.innerHTML = `<div class="error">${json.error}</div>`; return; }
-      const results = json.Results || [];
-      if (!results.length) { out.textContent = 'No results'; return; }
-      let html = `<h3>${htmlEscape(json.Summary || 'Results')}</h3>`;
-      html += '<table><tr><th>Kind</th><th>Name</th><th>Parent Type</th><th>Detail</th></tr>';
-      results.forEach(r => {
-        const parent = r.ParentType || r.FullName || '';
-        const parentLink = (parent && knownTypes.has(parent)) ? `<a href="#type=${encodeURIComponent(parent)}">${htmlEscape(parent)}</a>` : htmlEscape(parent);
-        let nameCell;
-        if (r.ElementType === 'Type' && r.FullName && knownTypes.has(r.FullName)) {
-          nameCell = `<a href="#type=${encodeURIComponent(r.FullName)}">${htmlEscape(r.Name)}</a>`;
-        } else if (parent && knownTypes.has(parent)) {
-          nameCell = `<a href="#type=${encodeURIComponent(parent)}">${htmlEscape(r.Name)}</a>`;
-        } else {
-          nameCell = htmlEscape(r.Name);
-        }
-        const detailRaw = r.ReturnType || r.PropertyType || r.FieldType || r.Value || '';
-        const detail = renderTypeRef(detailRaw);
-        html += `<tr><td>${htmlEscape(r.ElementType)}</td><td>${nameCell}</td><td>${parentLink}</td><td>${detail}</td></tr>`;
-      });
-      html += '</table>';
-      out.innerHTML = html;
-    }
-
-    function selectNamespace(ns) {
-      selectedNamespace = ns;
-      // Filter types list to this namespace
-      const url = new URL('/api/namespaces', location.origin);
-      url.searchParams.append('namespaces', ns);
-      fetch(url).then(r => r.json()).then(json => {
-        const list = document.getElementById('types');
-        list.innerHTML = '';
-        (json.Namespaces || []).forEach(ns => {
-          const nsHdr = document.createElement('div');
-          nsHdr.className = 'ns';
-          nsHdr.textContent = ns.Name + ' (' + ns.TypeCount + ')';
-          list.appendChild(nsHdr);
-          (ns.Types || []).forEach(t => {
-            const tEl = document.createElement('div');
-            tEl.className = 'type';
-            tEl.textContent = t.Name + ' [' + t.TypeKind + ']';
-            tEl.onclick = () => { location.hash = '#type=' + encodeURIComponent(t.Namespace + '.' + t.Name); };
-            list.appendChild(tEl);
-          });
-          // Summary for filtered namespace
-          const typesSummary = document.getElementById('typesSummary');
-          typesSummary.textContent = `Total ${ns.TypeCount}, showing 1-${(ns.Types||[]).length}`;
-          // Hide pager when a specific namespace is selected
-          const pager = document.getElementById('pager');
-          pager.innerHTML = '';
-        });
-      });
-    }
-
-    function handleHash() {
-      const hash = location.hash.slice(1);
-      const params = new URLSearchParams(hash);
-      const ns = params.get('ns');
-      const type = params.get('type');
-      if (ns) selectNamespace(decodeURIComponent(ns));
-      if (type) selectType(decodeURIComponent(type));
-    }
-
-    window.addEventListener('DOMContentLoaded', async () => {
-      try {
-        const res = await fetch('/api/types/list');
-        const arr = await res.json();
-        knownTypes = new Set(arr || []);
-      } catch {}
-      await loadNamespaces();
-      handleHash();
-      const q = document.getElementById('q');
-      q.addEventListener('input', () => {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(searchRealtime, 250);
-      });
-    });
-    window.addEventListener('hashchange', handleHash);
-  </script>
+        window.addEventListener('hashchange', handleHash);
+    </script>
 </head>
 <body>
-  <header>
+<header>
     <div class="row">
-      <strong>McpNetDll</strong>
-      <input id="q" placeholder="Search (regex, searches all)" style="flex:1;max-width:420px" />
-      <input id="dll" placeholder="Path to DLL" style="max-width:320px" />
-      <button onclick="loadDll()">Load DLL</button>
+        <strong>McpNetDll</strong>
+        <input id="q" placeholder="Search (regex, searches all)" style="flex:1;max-width:420px"/>
+        <input id="dll" placeholder="Path to DLL" style="max-width:320px"/>
+        <button onclick="loadDll()">Load DLL</button>
     </div>
-  </header>
-  <main>
+</header>
+<main>
     <aside>
-      <h4>Namespaces</h4>
-      <div id="nsTree"></div>
+        <h4>Namespaces</h4>
+        <div id="nsTree"></div>
     </aside>
     <aside>
-      <h4>Types</h4>
-      <div id="typesSummary" class="muted"></div>
-      <div id="types"></div>
-      <div id="pager" style="margin-top:12px; display:flex; gap:8px; align-items:center;"></div>
+        <h4>Types</h4>
+        <div class="muted" id="typesSummary"></div>
+        <div id="types"></div>
+        <div id="pager" style="margin-top:12px; display:flex; gap:8px; align-items:center;"></div>
     </aside>
     <section>
-      <h4>Details</h4>
-      <div id="output">Select a type or run a search…</div>
+        <h4>Details</h4>
+        <div id="output">Select a type or run a search…</div>
     </section>
-  </main>
-  <script>
+</main>
+<script>
     async function loadDll() {
-      const path = document.getElementById('dll').value;
-      if (!path) return;
-      const res = await fetch('/api/load?path=' + encodeURIComponent(path), { method: 'POST' });
-      const json = await res.json();
-      if (json.error || json.title) {
-        alert('Load failed: ' + (json.error || json.title));
-      } else {
-        alert('Loaded: ' + path);
-        nsOffset = 0; // reset pager
-        await loadNamespaces();
-      }
+        const path = document.getElementById('dll').value;
+        if (!path) return;
+        const res = await fetch('/api/load?path=' + encodeURIComponent(path), {method: 'POST'});
+        const json = await res.json();
+        if (json.error || json.title) {
+            alert('Load failed: ' + (json.error || json.title));
+        } else {
+            alert('Loaded: ' + path);
+            nsOffset = 0; // reset pager
+            await loadNamespaces();
+        }
     }
-  </script>
+</script>
 </body>
 </html>
 

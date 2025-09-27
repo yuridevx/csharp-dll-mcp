@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using dnlib.DotNet;
 using McpNetDll.Helpers;
 
@@ -8,12 +5,12 @@ namespace McpNetDll.Registry;
 
 public class TypeRegistry : ITypeRegistry
 {
+    private readonly List<string> _loadErrors = new();
+    private readonly Dictionary<string, List<TypeMetadata>> _namespaceMap = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<TypeMetadata>> _simpleNameMap = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, TypeMetadata> _typeMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<TypeMetadata> _types = new();
     private readonly XmlDocCommentIndex _xmlDocs = new();
-    private readonly Dictionary<string, TypeMetadata> _typeMap = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, List<TypeMetadata>> _simpleNameMap = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, List<TypeMetadata>> _namespaceMap = new(StringComparer.OrdinalIgnoreCase);
-    private readonly List<string> _loadErrors = new();
 
     public void LoadAssembly(string assemblyPath)
     {
@@ -22,124 +19,54 @@ public class TypeRegistry : ITypeRegistry
             var path = PathHelper.ConvertWslPath(assemblyPath);
             var module = ModuleDefMD.Load(path);
             // Load side-by-side XML docs if present
-            var xmlPath = System.IO.Path.ChangeExtension(path, ".xml");
+            var xmlPath = Path.ChangeExtension(path, ".xml");
             _xmlDocs.AddFromXml(xmlPath);
             foreach (var type in module.Types.Where(t => t.IsPublic))
             {
                 var metadata = TypeMetadataFactory.CreateTypeMetadata(type);
-                // Enrich with XML docs
                 var fullTypeName = $"{metadata.Namespace}.{metadata.Name}";
+
+                // Enrich with XML docs
                 var typeDoc = _xmlDocs.GetTypeDoc(fullTypeName);
                 if (!string.IsNullOrWhiteSpace(typeDoc))
-                {
-                    metadata = new TypeMetadata
-                    {
-                        Name = metadata.Name,
-                        Namespace = metadata.Namespace,
-                        TypeKind = metadata.TypeKind,
-                        Documentation = metadata.Documentation ?? typeDoc,
-                        MethodCount = metadata.MethodCount,
-                        PropertyCount = metadata.PropertyCount,
-                        FieldCount = metadata.FieldCount,
-                        EnumValues = metadata.EnumValues,
-                        StructLayout = metadata.StructLayout,
-                        Fields = metadata.Fields,
-                        Methods = metadata.Methods,
-                        Properties = metadata.Properties
-                    };
-                }
+                    metadata = metadata with { Documentation = metadata.Documentation ?? typeDoc };
+
                 if (metadata.Methods != null)
                 {
                     var newMethods = new List<MethodMetadata>(metadata.Methods.Count);
                     foreach (var m in metadata.Methods)
                     {
                         var doc = _xmlDocs.GetMethodDoc(fullTypeName, m.Name);
-                        newMethods.Add(new MethodMetadata
-                        {
-                            Name = m.Name,
-                            ReturnType = m.ReturnType,
-                            Documentation = m.Documentation ?? doc,
-                            IsStatic = m.IsStatic,
-                            Parameters = m.Parameters
-                        });
+                        newMethods.Add(doc is not null ? m with { Documentation = m.Documentation ?? doc } : m);
                     }
-                    metadata = new TypeMetadata
-                    {
-                        Name = metadata.Name,
-                        Namespace = metadata.Namespace,
-                        TypeKind = metadata.TypeKind,
-                        Documentation = metadata.Documentation,
-                        MethodCount = metadata.MethodCount,
-                        PropertyCount = metadata.PropertyCount,
-                        FieldCount = metadata.FieldCount,
-                        EnumValues = metadata.EnumValues,
-                        StructLayout = metadata.StructLayout,
-                        Fields = metadata.Fields,
-                        Methods = newMethods,
-                        Properties = metadata.Properties
-                    };
+
+                    metadata = metadata with { Methods = newMethods };
                 }
+
                 if (metadata.Properties != null)
                 {
                     var newProps = new List<PropertyMetadata>(metadata.Properties.Count);
                     foreach (var p in metadata.Properties)
                     {
                         var doc = _xmlDocs.GetPropertyDoc(fullTypeName, p.Name);
-                        newProps.Add(new PropertyMetadata
-                        {
-                            Name = p.Name,
-                            Type = p.Type,
-                            Documentation = p.Documentation ?? doc,
-                            IsStatic = p.IsStatic
-                        });
+                        newProps.Add(doc is not null ? p with { Documentation = p.Documentation ?? doc } : p);
                     }
-                    metadata = new TypeMetadata
-                    {
-                        Name = metadata.Name,
-                        Namespace = metadata.Namespace,
-                        TypeKind = metadata.TypeKind,
-                        Documentation = metadata.Documentation,
-                        MethodCount = metadata.MethodCount,
-                        PropertyCount = metadata.PropertyCount,
-                        FieldCount = metadata.FieldCount,
-                        EnumValues = metadata.EnumValues,
-                        StructLayout = metadata.StructLayout,
-                        Fields = metadata.Fields,
-                        Methods = metadata.Methods,
-                        Properties = newProps
-                    };
+
+                    metadata = metadata with { Properties = newProps };
                 }
+
                 if (metadata.Fields != null)
                 {
                     var newFields = new List<FieldMetadata>(metadata.Fields.Count);
                     foreach (var f in metadata.Fields)
                     {
                         var doc = _xmlDocs.GetFieldDoc(fullTypeName, f.Name);
-                        newFields.Add(new FieldMetadata
-                        {
-                            Name = f.Name,
-                            Type = f.Type,
-                            Offset = f.Offset,
-                            IsStatic = f.IsStatic,
-                            Documentation = f.Documentation ?? doc
-                        });
+                        newFields.Add(doc is not null ? f with { Documentation = f.Documentation ?? doc } : f);
                     }
-                    metadata = new TypeMetadata
-                    {
-                        Name = metadata.Name,
-                        Namespace = metadata.Namespace,
-                        TypeKind = metadata.TypeKind,
-                        Documentation = metadata.Documentation,
-                        MethodCount = metadata.MethodCount,
-                        PropertyCount = metadata.PropertyCount,
-                        FieldCount = metadata.FieldCount,
-                        EnumValues = metadata.EnumValues,
-                        StructLayout = metadata.StructLayout,
-                        Fields = newFields,
-                        Methods = metadata.Methods,
-                        Properties = metadata.Properties
-                    };
+
+                    metadata = metadata with { Fields = newFields };
                 }
+
                 RegisterType(metadata);
             }
         }
@@ -149,31 +76,15 @@ public class TypeRegistry : ITypeRegistry
         }
     }
 
-    public void LoadAssemblies(IEnumerable<string> assemblyPaths)
+    public void LoadAssemblies(string[] assemblyPaths)
     {
-        foreach (var path in assemblyPaths)
-        {
-            LoadAssembly(path);
-        }
+        foreach (var path in assemblyPaths) LoadAssembly(path);
     }
 
-    private void RegisterType(TypeMetadata metadata)
+    public List<TypeMetadata> GetAllTypes()
     {
-        _types.Add(metadata);
-        
-        var fullName = $"{metadata.Namespace}.{metadata.Name}";
-        _typeMap[fullName] = metadata;
-        
-        if (!_simpleNameMap.ContainsKey(metadata.Name))
-            _simpleNameMap[metadata.Name] = new List<TypeMetadata>();
-        _simpleNameMap[metadata.Name].Add(metadata);
-        
-        if (!_namespaceMap.ContainsKey(metadata.Namespace))
-            _namespaceMap[metadata.Namespace] = new List<TypeMetadata>();
-        _namespaceMap[metadata.Namespace].Add(metadata);
+        return new List<TypeMetadata>(_types);
     }
-
-    public List<TypeMetadata> GetAllTypes() => new(_types);
 
     public TypeMetadata? GetTypeByFullName(string fullName)
     {
@@ -182,15 +93,15 @@ public class TypeRegistry : ITypeRegistry
 
     public List<TypeMetadata> GetTypesBySimpleName(string simpleName)
     {
-        return _simpleNameMap.TryGetValue(simpleName, out var types) 
-            ? new List<TypeMetadata>(types) 
+        return _simpleNameMap.TryGetValue(simpleName, out var types)
+            ? new List<TypeMetadata>(types)
             : new List<TypeMetadata>();
     }
 
     public List<TypeMetadata> GetTypesByNamespace(string namespaceName)
     {
-        return _namespaceMap.TryGetValue(namespaceName, out var types) 
-            ? new List<TypeMetadata>(types) 
+        return _namespaceMap.TryGetValue(namespaceName, out var types)
+            ? new List<TypeMetadata>(types)
             : new List<TypeMetadata>();
     }
 
@@ -202,20 +113,37 @@ public class TypeRegistry : ITypeRegistry
     public bool TryGetType(string name, out TypeMetadata? type)
     {
         type = null;
-        
+
         if (_typeMap.TryGetValue(name, out type))
             return true;
-        
+
         if (_simpleNameMap.TryGetValue(name, out var types) && types.Count == 1)
         {
             type = types[0];
             return true;
         }
-        
+
         return false;
     }
 
-    public List<string> GetLoadErrors() => new(_loadErrors);
+    public List<string> GetLoadErrors()
+    {
+        return new List<string>(_loadErrors);
+    }
+
+    private void RegisterType(TypeMetadata metadata)
+    {
+        _types.Add(metadata);
+
+        var fullName = $"{metadata.Namespace}.{metadata.Name}";
+        _typeMap[fullName] = metadata;
+
+        if (!_simpleNameMap.ContainsKey(metadata.Name))
+            _simpleNameMap[metadata.Name] = new List<TypeMetadata>();
+        _simpleNameMap[metadata.Name].Add(metadata);
+
+        if (!_namespaceMap.ContainsKey(metadata.Namespace))
+            _namespaceMap[metadata.Namespace] = new List<TypeMetadata>();
+        _namespaceMap[metadata.Namespace].Add(metadata);
+    }
 }
-
-

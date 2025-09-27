@@ -1,9 +1,5 @@
-using System;
-using System.Linq;
 using dnlib.DotNet;
-using McpNetDll;
 using McpNetDll.Registry;
-using Xunit;
 
 namespace McpNetDll.Tests.Registry;
 
@@ -46,14 +42,17 @@ public class TypeMetadataFactoryTests
         enumType.Attributes = TypeAttributes.Public | TypeAttributes.Sealed;
         module.Types.Add(enumType);
 
-        var valueField = new FieldDefUser("__value__", new FieldSig(module.CorLibTypes.Int32), FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RTSpecialName);
+        var valueField = new FieldDefUser("__value__", new FieldSig(module.CorLibTypes.Int32),
+            FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RTSpecialName);
         enumType.Fields.Add(valueField);
 
-        var enumValue1 = new FieldDefUser("Value1", new FieldSig(new ValueTypeSig(enumType)), FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal);
+        var enumValue1 = new FieldDefUser("Value1", new FieldSig(new ValueTypeSig(enumType)),
+            FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal);
         enumValue1.Constant = module.UpdateRowId(new ConstantUser(0, module.CorLibTypes.Int32.ElementType));
         enumType.Fields.Add(enumValue1);
 
-        var enumValue2 = new FieldDefUser("Value2", new FieldSig(new ValueTypeSig(enumType)), FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal);
+        var enumValue2 = new FieldDefUser("Value2", new FieldSig(new ValueTypeSig(enumType)),
+            FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal);
         enumValue2.Constant = module.UpdateRowId(new ConstantUser(1, module.CorLibTypes.Int32.ElementType));
         enumType.Fields.Add(enumValue2);
 
@@ -71,7 +70,8 @@ public class TypeMetadataFactoryTests
     {
         var module = new ModuleDefUser("TestModule");
         var typeDef = new TypeDefUser("TestNamespace", "StaticClass", module.CorLibTypes.Object.TypeDefOrRef);
-        typeDef.Attributes = TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed;
+        typeDef.Attributes = TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Abstract |
+                             TypeAttributes.Sealed;
         module.Types.Add(typeDef);
 
         var metadata = TypeMetadataFactory.CreateTypeMetadata(typeDef);
@@ -109,7 +109,8 @@ public class TypeMetadataFactoryTests
     public void CreateTypeMetadata_ForStruct_ReturnsCorrectTypeKind()
     {
         var module = new ModuleDefUser("TestModule");
-        var typeDef = new TypeDefUser("TestNamespace", "TestStruct", module.CorLibTypes.GetTypeRef("System", "ValueType"));
+        var typeDef = new TypeDefUser("TestNamespace", "TestStruct",
+            module.CorLibTypes.GetTypeRef("System", "ValueType"));
         typeDef.Attributes = TypeAttributes.Public | TypeAttributes.Sealed;
         module.Types.Add(typeDef);
 
@@ -126,10 +127,12 @@ public class TypeMetadataFactoryTests
         typeDef.Attributes = TypeAttributes.Public | TypeAttributes.Class;
         module.Types.Add(typeDef);
 
-        var publicMethod = new MethodDefUser("PublicMethod", MethodSig.CreateInstance(module.CorLibTypes.Void), MethodAttributes.Public);
+        var publicMethod = new MethodDefUser("PublicMethod", MethodSig.CreateInstance(module.CorLibTypes.Void),
+            MethodAttributes.Public);
         typeDef.Methods.Add(publicMethod);
 
-        var privateMethod = new MethodDefUser("PrivateMethod", MethodSig.CreateInstance(module.CorLibTypes.Void), MethodAttributes.Private);
+        var privateMethod = new MethodDefUser("PrivateMethod", MethodSig.CreateInstance(module.CorLibTypes.Void),
+            MethodAttributes.Private);
         typeDef.Methods.Add(privateMethod);
 
         var metadata = TypeMetadataFactory.CreateTypeMetadata(typeDef);
@@ -148,7 +151,8 @@ public class TypeMetadataFactoryTests
         module.Types.Add(typeDef);
 
         var property = new PropertyDefUser("TestProperty", new PropertySig(true, module.CorLibTypes.String));
-        var getter = new MethodDefUser("get_TestProperty", MethodSig.CreateInstance(module.CorLibTypes.String), MethodAttributes.Public | MethodAttributes.SpecialName);
+        var getter = new MethodDefUser("get_TestProperty", MethodSig.CreateInstance(module.CorLibTypes.String),
+            MethodAttributes.Public | MethodAttributes.SpecialName);
         property.GetMethod = getter;
         typeDef.Methods.Add(getter);
         typeDef.Properties.Add(property);
@@ -169,10 +173,12 @@ public class TypeMetadataFactoryTests
         typeDef.Attributes = TypeAttributes.Public | TypeAttributes.Class;
         module.Types.Add(typeDef);
 
-        var specialMethod = new MethodDefUser("get_Property", MethodSig.CreateInstance(module.CorLibTypes.String), MethodAttributes.Public | MethodAttributes.SpecialName);
+        var specialMethod = new MethodDefUser("get_Property", MethodSig.CreateInstance(module.CorLibTypes.String),
+            MethodAttributes.Public | MethodAttributes.SpecialName);
         typeDef.Methods.Add(specialMethod);
 
-        var normalMethod = new MethodDefUser("NormalMethod", MethodSig.CreateInstance(module.CorLibTypes.Void), MethodAttributes.Public);
+        var normalMethod = new MethodDefUser("NormalMethod", MethodSig.CreateInstance(module.CorLibTypes.Void),
+            MethodAttributes.Public);
         typeDef.Methods.Add(normalMethod);
 
         var metadata = TypeMetadataFactory.CreateTypeMetadata(typeDef);
@@ -190,10 +196,12 @@ public class TypeMetadataFactoryTests
         typeDef.Attributes = TypeAttributes.Public | TypeAttributes.Class;
         module.Types.Add(typeDef);
 
-        var staticMethod = new MethodDefUser("StaticMethod", MethodSig.CreateStatic(module.CorLibTypes.Void), MethodAttributes.Public | MethodAttributes.Static);
+        var staticMethod = new MethodDefUser("StaticMethod", MethodSig.CreateStatic(module.CorLibTypes.Void),
+            MethodAttributes.Public | MethodAttributes.Static);
         typeDef.Methods.Add(staticMethod);
 
-        var instanceMethod = new MethodDefUser("InstanceMethod", MethodSig.CreateInstance(module.CorLibTypes.Void), MethodAttributes.Public);
+        var instanceMethod = new MethodDefUser("InstanceMethod", MethodSig.CreateInstance(module.CorLibTypes.Void),
+            MethodAttributes.Public);
         typeDef.Methods.Add(instanceMethod);
 
         var metadata = TypeMetadataFactory.CreateTypeMetadata(typeDef);
@@ -213,14 +221,16 @@ public class TypeMetadataFactoryTests
 
         // Instance property
         var prop1 = new PropertyDefUser("InstanceProp", new PropertySig(true, module.CorLibTypes.Int32));
-        var get1 = new MethodDefUser("get_InstanceProp", MethodSig.CreateInstance(module.CorLibTypes.Int32), MethodAttributes.Public | MethodAttributes.SpecialName);
+        var get1 = new MethodDefUser("get_InstanceProp", MethodSig.CreateInstance(module.CorLibTypes.Int32),
+            MethodAttributes.Public | MethodAttributes.SpecialName);
         prop1.GetMethod = get1;
         typeDef.Methods.Add(get1);
         typeDef.Properties.Add(prop1);
 
         // Static property
         var prop2 = new PropertyDefUser("StaticProp", new PropertySig(true, module.CorLibTypes.String));
-        var get2 = new MethodDefUser("get_StaticProp", MethodSig.CreateStatic(module.CorLibTypes.String), MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.Static);
+        var get2 = new MethodDefUser("get_StaticProp", MethodSig.CreateStatic(module.CorLibTypes.String),
+            MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.Static);
         prop2.GetMethod = get2;
         typeDef.Methods.Add(get2);
         typeDef.Properties.Add(prop2);
@@ -240,10 +250,12 @@ public class TypeMetadataFactoryTests
         typeDef.Attributes = TypeAttributes.Public | TypeAttributes.Class;
         module.Types.Add(typeDef);
 
-        var instanceField = new FieldDefUser("InstanceField", new FieldSig(module.CorLibTypes.Int32), FieldAttributes.Public);
+        var instanceField =
+            new FieldDefUser("InstanceField", new FieldSig(module.CorLibTypes.Int32), FieldAttributes.Public);
         typeDef.Fields.Add(instanceField);
 
-        var staticField = new FieldDefUser("StaticField", new FieldSig(module.CorLibTypes.String), FieldAttributes.Public | FieldAttributes.Static);
+        var staticField = new FieldDefUser("StaticField", new FieldSig(module.CorLibTypes.String),
+            FieldAttributes.Public | FieldAttributes.Static);
         typeDef.Fields.Add(staticField);
 
         var metadata = TypeMetadataFactory.CreateTypeMetadata(typeDef);

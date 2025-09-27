@@ -1,9 +1,11 @@
+using McpNetDll.Registry;
+using McpNetDll.Repository;
+
 namespace McpNetDll.Helpers;
 
 public interface IMcpResponseFormatter
 {
-    string FormatNamespaceResponse(Repository.NamespaceQueryResult result, Registry.ITypeRegistry registry);
-    string FormatTypeDetailsResponse(Repository.TypeDetailsQueryResult result, Registry.ITypeRegistry registry);
-    string FormatSearchResponse(Repository.SearchQueryResult result, Registry.ITypeRegistry registry);
+    string FormatNamespaceResponse(NamespaceQueryResult result, ITypeRegistry registry);
+    string FormatTypeDetailsResponse(TypeDetailsQueryResult result, ITypeRegistry registry);
+    string FormatSearchResponse(SearchQueryResult result, ITypeRegistry registry);
 }
-

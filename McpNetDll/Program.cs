@@ -1,9 +1,10 @@
+using McpNetDll.Core;
+using McpNetDll.Helpers;
+using McpNetDll.Registry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using McpNetDll.Registry;
-using McpNetDll.Repository;
-using McpNetDll.Helpers;
+using ModelContextProtocol.Protocol;
 
 namespace McpNetDll;
 
@@ -21,7 +22,7 @@ public class Program
         var dllPaths = args.Where(File.Exists)
             .Select(PathHelper.ConvertWslPath)
             .ToArray();
-            
+
         if (dllPaths.Length == 0)
         {
             Console.Error.WriteLine("Error: None of the provided DLL paths exist.");
@@ -34,29 +35,26 @@ public class Program
         builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
 
         // Register the new architecture components
-        var typeRegistry = new TypeRegistry();
-        typeRegistry.LoadAssemblies(dllPaths);
-        
+        builder.Services.AddCoreServices(dllPaths);
+
+        var typeRegistry = builder.Services.BuildServiceProvider().GetRequiredService<ITypeRegistry>();
         var availableNamespaces = typeRegistry.GetAllNamespaces();
-        var namespaceSummary = availableNamespaces.Any() 
+        var namespaceSummary = availableNamespaces.Any()
             ? $"Loaded {availableNamespaces.Count} namespaces: {string.Join(", ", availableNamespaces.Take(5))}{(availableNamespaces.Count > 5 ? "..." : "")}"
             : "No namespaces loaded";
 
-        builder.Services.AddSingleton<ITypeRegistry>(typeRegistry);
-        builder.Services.AddSingleton<IMetadataRepository, MetadataRepository>();
-        builder.Services.AddSingleton<IMcpResponseFormatter, McpResponseFormatter>();
-        
-        // Backward compatibility extractor removed; logic now lives in TypeRegistry/Repository
-        
+
         builder.Services
-            .AddMcpServer(server => { 
-                server.ServerInfo = new() { 
-                    Name = $"McpNetDll ({namespaceSummary})", 
+            .AddMcpServer(server =>
+            {
+                server.ServerInfo = new Implementation
+                {
+                    Name = $"McpNetDll ({namespaceSummary})",
                     Version = "1.0.0"
-                }; 
+                };
             })
             .WithStdioServerTransport()
-            .WithToolsFromAssembly(); // Scans the assembly for [McpServerToolType]
+            .WithToolsFromAssembly();
 
         var host = builder.Build();
         await host.RunAsync();

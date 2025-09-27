@@ -1,19 +1,19 @@
 namespace McpNetDll;
 
-public class AssemblyMetadata
+public record AssemblyMetadata
 {
     public required string Name { get; init; }
     public required List<TypeMetadata> Types { get; init; }
 }
 
-public class NamespaceMetadata
+public record NamespaceMetadata
 {
     public required string Name { get; init; }
     public required int TypeCount { get; init; }
     public required List<TypeMetadata> Types { get; init; }
 }
 
-public class TypeMetadata
+public record TypeMetadata
 {
     public required string Name { get; init; }
     public required string Namespace { get; init; }
@@ -29,7 +29,7 @@ public class TypeMetadata
     public List<FieldMetadata>? Fields { get; init; }
 }
 
-public class MethodMetadata
+public record MethodMetadata
 {
     public required string Name { get; init; }
     public required string ReturnType { get; init; }
@@ -38,7 +38,7 @@ public class MethodMetadata
     public required List<ParameterMetadata> Parameters { get; init; }
 }
 
-public class PropertyMetadata
+public record PropertyMetadata
 {
     public required string Name { get; init; }
     public required string Type { get; init; }
@@ -46,19 +46,19 @@ public class PropertyMetadata
     public bool IsStatic { get; init; }
 }
 
-public class ParameterMetadata
+public record ParameterMetadata
 {
     public required string Name { get; init; }
     public required string Type { get; init; }
 }
 
-public class EnumValueMetadata
+public record EnumValueMetadata
 {
     public required string Name { get; init; }
     public string? Value { get; init; }
 }
 
-public class FieldMetadata
+public record FieldMetadata
 {
     public required string Name { get; init; }
     public required string Type { get; init; }
@@ -67,10 +67,9 @@ public class FieldMetadata
     public bool IsStatic { get; init; }
 }
 
-public class StructLayoutMetadata
+public record StructLayoutMetadata
 {
     public required string Kind { get; init; }
     public int? Pack { get; init; }
     public int? Size { get; init; }
 }
-

@@ -1,21 +1,22 @@
 ﻿using System.ComponentModel;
-using ModelContextProtocol.Server;
+using McpNetDll.Helpers;
 using McpNetDll.Registry;
 using McpNetDll.Repository;
-using McpNetDll.Helpers;
+using ModelContextProtocol.Server;
 
 namespace McpNetDll;
 
 [McpServerToolType]
 public static class DllMetadataTool
 {
-    [McpServerTool,
-     Description("Lists all public namespaces and their types from loaded .NET assemblies")]
+    [McpServerTool]
+    [Description("Lists all public namespaces and their types from loaded .NET assemblies")]
     public static string ListNamespaces(
         IMetadataRepository repository,
         IMcpResponseFormatter formatter,
         ITypeRegistry registry,
-        [Description("Optional: An array of specific namespace names to inspect. If omitted, all loaded namespaces will be listed.")]
+        [Description(
+            "Optional: An array of specific namespace names to inspect. If omitted, all loaded namespaces will be listed.")]
         string[]? namespaces = null,
         [Description("Optional: Maximum number of namespaces to return (default: 50)")]
         int? limit = null,
@@ -26,28 +27,31 @@ public static class DllMetadataTool
         return formatter.FormatNamespaceResponse(result, registry);
     }
 
-    [McpServerTool,
-     Description("Gets detailed public API information for specific .NET types from loaded assemblies")]
+    [McpServerTool]
+    [Description("Gets detailed public API information for specific .NET types from loaded assemblies")]
     public static string GetTypeDetails(
         IMetadataRepository repository,
         IMcpResponseFormatter formatter,
         ITypeRegistry registry,
-        [Description("An array of type names to analyze. Use full names (e.g., 'MyNamespace.MyClass') or simple names if unambiguous. Use ListNamespaces to discover available types.")]
+        [Description(
+            "An array of type names to analyze. Use full names (e.g., 'MyNamespace.MyClass') or simple names if unambiguous. Use ListNamespaces to discover available types.")]
         string[] typeNames)
     {
         var result = repository.QueryTypeDetails(typeNames);
         return formatter.FormatTypeDetailsResponse(result, registry);
     }
 
-    [McpServerTool,
-     Description("Searches across all elements (types, methods, properties, fields, enum values) matching a regular expression pattern")]
+    [McpServerTool]
+    [Description(
+        "Searches across all elements (types, methods, properties, fields, enum values) matching a regular expression pattern")]
     public static string SearchElements(
         IMetadataRepository repository,
         IMcpResponseFormatter formatter,
         ITypeRegistry registry,
         [Description("Regular expression pattern to search for (e.g., '.*Service.*', 'Get.*', '^I[A-Z].*')")]
         string pattern,
-        [Description("Optional: Element types to search in. Options: 'all' (default), 'types', 'methods', 'properties', 'fields', 'enums'")]
+        [Description(
+            "Optional: Element types to search in. Options: 'all' (default), 'types', 'methods', 'properties', 'fields', 'enums'")]
         string? searchScope = null,
         [Description("Optional: Maximum number of results to return (default: 100)")]
         int? limit = null,

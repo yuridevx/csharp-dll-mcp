@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 using McpNetDll.Registry;
 
@@ -21,46 +18,33 @@ public class MetadataRepository : IMetadataRepository
         var allTypes = _typeRegistry.GetAllTypes();
 
         if (loadErrors.Any() && !allTypes.Any())
-        {
             return new NamespaceQueryResult
             {
                 Error = $"Failed to load all assemblies: {string.Join(", ", loadErrors)}"
             };
-        }
 
         var types = allTypes.AsEnumerable();
-        
+
         if (namespaces?.Length > 0)
         {
             var availableNs = _typeRegistry.GetAllNamespaces();
             var missing = namespaces.Where(ns => !availableNs.Contains(ns, StringComparer.OrdinalIgnoreCase)).ToList();
-            
+
             if (missing.Any())
-            {
                 return new NamespaceQueryResult
                 {
                     Error = $"Namespace(s) not found: {string.Join(", ", missing)}"
                 };
-            }
-            
+
             types = namespaces.SelectMany(ns => _typeRegistry.GetTypesByNamespace(ns));
         }
 
         var namespaceGroups = types.GroupBy(t => t.Namespace)
-            .Select(g => new NamespaceInfo
+            .Select(g => new NamespaceMetadata
             {
                 Name = g.Key,
                 TypeCount = g.Count(),
-                Types = g.Select(t => new TypeSummary
-                {
-                    Name = t.Name,
-                    Namespace = t.Namespace,
-                    TypeKind = t.TypeKind,
-                    MethodCount = t.MethodCount,
-                    PropertyCount = t.PropertyCount,
-                    FieldCount = t.FieldCount,
-                    EnumValues = t.EnumValues
-                }).OrderBy(t => t.Name).ToList()
+                Types = g.OrderBy(t => t.Name).ToList()
             })
             .OrderBy(ns => ns.Name)
             .ToList();
@@ -83,38 +67,28 @@ public class MetadataRepository : IMetadataRepository
     public TypeDetailsQueryResult QueryTypeDetails(string[] typeNames)
     {
         if (typeNames == null || typeNames.Length == 0)
-        {
             return new TypeDetailsQueryResult
             {
                 Error = "TypeNames array cannot be empty."
             };
-        }
 
         var loadErrors = _typeRegistry.GetLoadErrors();
         var allTypes = _typeRegistry.GetAllTypes();
 
         if (loadErrors.Any() && !allTypes.Any())
-        {
             return new TypeDetailsQueryResult
             {
                 Error = $"Failed to load all assemblies: {string.Join(", ", loadErrors)}"
             };
-        }
 
         var found = new List<TypeMetadata>();
         var missing = new List<string>();
 
         foreach (var name in typeNames)
-        {
             if (_typeRegistry.TryGetType(name, out var type) && type != null)
-            {
                 found.Add(type);
-            }
             else
-            {
                 missing.Add(name);
-            }
-        }
 
         if (missing.Any())
         {
@@ -144,10 +118,7 @@ public class MetadataRepository : IMetadataRepository
             var results = new List<SearchResult>();
             var types = _typeRegistry.GetAllTypes().OrderBy(t => t.Namespace).ThenBy(t => t.Name);
 
-            foreach (var type in types)
-            {
-                SearchInType(type, regex, searchScope, results);
-            }
+            foreach (var type in types) SearchInType(type, regex, searchScope, results);
 
             var total = results.Count;
             var paginatedResults = results.Skip(offset).Take(limit).ToList();
@@ -175,7 +146,6 @@ public class MetadataRepository : IMetadataRepository
     private void SearchInType(TypeMetadata type, Regex regex, string searchScope, List<SearchResult> results)
     {
         if ((searchScope == "all" || searchScope == "types") && regex.IsMatch(type.Name))
-        {
             results.Add(new SearchResult
             {
                 ElementType = "Type",
@@ -184,14 +154,10 @@ public class MetadataRepository : IMetadataRepository
                 TypeKind = type.TypeKind,
                 FullName = $"{type.Namespace}.{type.Name}"
             });
-        }
 
         if ((searchScope == "all" || searchScope == "methods") && type.Methods != null)
-        {
             foreach (var method in type.Methods)
-            {
                 if (regex.IsMatch(method.Name))
-                {
                     results.Add(new SearchResult
                     {
                         ElementType = "Method",
@@ -200,16 +166,10 @@ public class MetadataRepository : IMetadataRepository
                         ReturnType = method.ReturnType,
                         Parameters = method.Parameters?.Select(p => p.Type)
                     });
-                }
-            }
-        }
 
         if ((searchScope == "all" || searchScope == "properties") && type.Properties != null)
-        {
             foreach (var property in type.Properties)
-            {
                 if (regex.IsMatch(property.Name))
-                {
                     results.Add(new SearchResult
                     {
                         ElementType = "Property",
@@ -217,16 +177,10 @@ public class MetadataRepository : IMetadataRepository
                         ParentType = $"{type.Namespace}.{type.Name}",
                         PropertyType = property.Type
                     });
-                }
-            }
-        }
 
         if ((searchScope == "all" || searchScope == "fields") && type.Fields != null)
-        {
             foreach (var field in type.Fields)
-            {
                 if (regex.IsMatch(field.Name))
-                {
                     results.Add(new SearchResult
                     {
                         ElementType = "Field",
@@ -234,16 +188,10 @@ public class MetadataRepository : IMetadataRepository
                         ParentType = $"{type.Namespace}.{type.Name}",
                         FieldType = field.Type
                     });
-                }
-            }
-        }
 
         if ((searchScope == "all" || searchScope == "enums") && type.EnumValues != null)
-        {
             foreach (var enumValue in type.EnumValues)
-            {
                 if (regex.IsMatch(enumValue.Name))
-                {
                     results.Add(new SearchResult
                     {
                         ElementType = "EnumValue",
@@ -251,10 +199,5 @@ public class MetadataRepository : IMetadataRepository
                         ParentType = $"{type.Namespace}.{type.Name}",
                         Value = enumValue.Value
                     });
-                }
-            }
-        }
     }
 }
-
-

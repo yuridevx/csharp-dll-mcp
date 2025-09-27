@@ -1,10 +1,6 @@
-using System.Collections.Generic;
-using System.Linq;
-using McpNetDll;
 using McpNetDll.Registry;
 using McpNetDll.Repository;
 using Moq;
-using Xunit;
 
 namespace McpNetDll.Tests.Repository;
 
@@ -108,7 +104,7 @@ public class MetadataRepositoryTests
 
         var repository = new MetadataRepository(mockRegistry.Object);
 
-        var result = repository.QueryNamespaces(null, limit: 3, offset: 2);
+        var result = repository.QueryNamespaces(null, 3, 2);
 
         Assert.NotNull(result);
         Assert.Equal(3, result.Namespaces.Count);
@@ -130,7 +126,8 @@ public class MetadataRepositoryTests
 
         var mockRegistry = CreateMockRegistry();
         mockRegistry.Setup(r => r.GetAllTypes()).Returns(types);
-        mockRegistry.Setup(r => r.GetAllNamespaces()).Returns(new List<string> { "Namespace1", "Namespace2", "Namespace3" });
+        mockRegistry.Setup(r => r.GetAllNamespaces())
+            .Returns(new List<string> { "Namespace1", "Namespace2", "Namespace3" });
         mockRegistry.Setup(r => r.GetTypesByNamespace("Namespace1")).Returns(new List<TypeMetadata> { types[0] });
         mockRegistry.Setup(r => r.GetTypesByNamespace("Namespace3")).Returns(new List<TypeMetadata> { types[2] });
         mockRegistry.Setup(r => r.GetLoadErrors()).Returns(new List<string>());
@@ -250,8 +247,8 @@ public class MetadataRepositoryTests
     {
         var types = new List<TypeMetadata>
         {
-            CreateTestTypeMetadata("ServiceClass", "TestNamespace"),
-            CreateTestTypeMetadata("RepositoryClass", "TestNamespace")
+            CreateTestTypeMetadata("ServiceClass"),
+            CreateTestTypeMetadata("RepositoryClass")
         };
 
         var mockRegistry = CreateMockRegistry();
@@ -272,19 +269,14 @@ public class MetadataRepositoryTests
     public void SearchElements_SearchesInMethods()
     {
         var type = CreateTestTypeMetadata();
-        type = new TypeMetadata
+        type = type with
         {
-            Name = type.Name,
-            Namespace = type.Namespace,
-            TypeKind = type.TypeKind,
             MethodCount = 2,
-            PropertyCount = type.PropertyCount,
             Methods = new List<MethodMetadata>
             {
                 new() { Name = "GetData", ReturnType = "System.String", Parameters = new List<ParameterMetadata>() },
                 new() { Name = "SetData", ReturnType = "System.Void", Parameters = new List<ParameterMetadata>() }
-            },
-            Properties = type.Properties
+            }
         };
 
         var mockRegistry = CreateMockRegistry();
@@ -304,14 +296,9 @@ public class MetadataRepositoryTests
     public void SearchElements_SearchesInProperties()
     {
         var type = CreateTestTypeMetadata();
-        type = new TypeMetadata
+        type = type with
         {
-            Name = type.Name,
-            Namespace = type.Namespace,
-            TypeKind = type.TypeKind,
-            MethodCount = type.MethodCount,
             PropertyCount = 2,
-            Methods = type.Methods,
             Properties = new List<PropertyMetadata>
             {
                 new() { Name = "Count", Type = "System.Int32" },
@@ -336,16 +323,9 @@ public class MetadataRepositoryTests
     public void SearchElements_SearchesInFields()
     {
         var type = CreateTestTypeMetadata();
-        type = new TypeMetadata
+        type = type with
         {
-            Name = type.Name,
-            Namespace = type.Namespace,
-            TypeKind = type.TypeKind,
-            MethodCount = type.MethodCount,
-            PropertyCount = type.PropertyCount,
             FieldCount = 2,
-            Methods = type.Methods,
-            Properties = type.Properties,
             Fields = new List<FieldMetadata>
             {
                 new() { Name = "_data", Type = "System.String" },
@@ -370,15 +350,9 @@ public class MetadataRepositoryTests
     public void SearchElements_SearchesInEnumValues()
     {
         var type = CreateTestTypeMetadata();
-        type = new TypeMetadata
+        type = type with
         {
-            Name = type.Name,
-            Namespace = type.Namespace,
             TypeKind = "enum",
-            MethodCount = type.MethodCount,
-            PropertyCount = type.PropertyCount,
-            Methods = type.Methods,
-            Properties = type.Properties,
             EnumValues = new List<EnumValueMetadata>
             {
                 new() { Name = "None", Value = "0" },
@@ -405,7 +379,7 @@ public class MetadataRepositoryTests
     public void SearchElements_WithPagination_ReturnsCorrectPage()
     {
         var types = Enumerable.Range(1, 20)
-            .Select(i => CreateTestTypeMetadata($"Class{i}", "TestNamespace"))
+            .Select(i => CreateTestTypeMetadata($"Class{i}"))
             .ToList();
 
         var mockRegistry = CreateMockRegistry();
@@ -413,7 +387,7 @@ public class MetadataRepositoryTests
 
         var repository = new MetadataRepository(mockRegistry.Object);
 
-        var result = repository.SearchElements("Class", "types", limit: 5, offset: 10);
+        var result = repository.SearchElements("Class", "types", 5, 10);
 
         Assert.NotNull(result);
         Assert.Equal(5, result.Results.Count);
