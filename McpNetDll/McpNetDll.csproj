@@ -18,10 +18,4 @@
         <ProjectReference Include="..\McpNetDll.Core\McpNetDll.Core.csproj"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <None Include="words_alpha.txt">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-    </ItemGroup>
-
 </Project> 
