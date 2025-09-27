@@ -63,7 +63,6 @@ public static class TypeMetadataFactory
                         Type = p.Type.FullName
                     }).ToList()
             })
-            .Where(mm => IdentifierMeaningFilter.HasMeaningfulName(mm.Name))
             .OrderBy(m => m.Name)
             .ToList();
     }
@@ -79,7 +78,6 @@ public static class TypeMetadataFactory
                 Documentation = GetDocumentation(p.CustomAttributes),
                 IsStatic = (p.GetMethod?.IsStatic ?? false) || (p.SetMethod?.IsStatic ?? false)
             })
-            .Where(pm => IdentifierMeaningFilter.HasMeaningfulName(pm.Name))
             .OrderBy(p => p.Name)
             .ToList();
     }
@@ -94,7 +92,6 @@ public static class TypeMetadataFactory
                     Name = f.Name.String,
                     Value = f.Constant.Value?.ToString()
                 })
-                .Where(ev => IdentifierMeaningFilter.HasMeaningfulName(ev.Name))
                 .ToList()
             : null;
     }
@@ -116,7 +113,7 @@ public static class TypeMetadataFactory
         if (type.IsEnum) return null;
 
         var fields = type.Fields
-            .Where(f => !f.CustomAttributes
+            .Where(f => f.IsPublic && !f.CustomAttributes
                 .Any(a => a.TypeFullName == "System.Runtime.CompilerServices.CompilerGeneratedAttribute"))
             .Select(f => new FieldMetadata
             {
@@ -126,7 +123,6 @@ public static class TypeMetadataFactory
                 IsStatic = f.IsStatic,
                 Documentation = GetDocumentation(f.CustomAttributes)
             })
-            .Where(fm => IdentifierMeaningFilter.HasMeaningfulName(fm.Name))
             .OrderBy(f => f.Name)
             .ToList();
 
