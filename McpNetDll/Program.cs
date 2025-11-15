@@ -15,11 +15,15 @@ public class Program
         if (args.Length == 0)
         {
             Console.Error.WriteLine("Error: Please provide path(s) to DLL file(s) as command line arguments.");
-            Console.Error.WriteLine("Usage: McpNetDll.exe <dll-path1> [dll-path2] [...]");
+            Console.Error.WriteLine("Usage: McpNetDll.exe <dll-path1> [dll-path2] [...] [--json-format]");
+            Console.Error.WriteLine("Options:");
+            Console.Error.WriteLine("  --json-format    Use JSON output format instead of default AI-optimized format");
             Environment.Exit(1);
         }
 
-        var dllPaths = args.Where(File.Exists)
+        // Filter out flags and get only DLL paths
+        var dllArgs = args.Where(arg => !arg.StartsWith("--")).ToArray();
+        var dllPaths = dllArgs.Where(File.Exists)
             .Select(PathHelper.ConvertWslPath)
             .ToArray();
 
@@ -34,8 +38,14 @@ public class Program
         // Redirect console logging to stderr
         builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
 
+        // Check for JSON formatter flag (environment variable or --json-format flag)
+        // Default is to use AI formatter unless explicitly requested otherwise
+        var useJsonFormatter = Environment.GetEnvironmentVariable("MCP_JSON_FORMAT") == "true" ||
+                             args.Contains("--json-format");
+        var useAiFormatter = !useJsonFormatter;
+
         // Register the new architecture components
-        builder.Services.AddCoreServices(dllPaths);
+        builder.Services.AddCoreServices(dllPaths, useAiFormatter);
 
         var typeRegistry = builder.Services.BuildServiceProvider().GetRequiredService<ITypeRegistry>();
         var availableNamespaces = typeRegistry.GetAllNamespaces();

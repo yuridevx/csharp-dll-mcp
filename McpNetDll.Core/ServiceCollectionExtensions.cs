@@ -7,7 +7,7 @@ namespace McpNetDll.Core;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddCoreServices(this IServiceCollection services, string[] dllPaths)
+    public static IServiceCollection AddCoreServices(this IServiceCollection services, string[] dllPaths, bool useAiFormatter = true)
     {
         services.AddSingleton<ITypeRegistry>(sp =>
         {
@@ -16,7 +16,17 @@ public static class ServiceCollectionExtensions
             return registry;
         });
         services.AddSingleton<IMetadataRepository, MetadataRepository>();
-        services.AddSingleton<IMcpResponseFormatter, McpResponseFormatter>();
+
+        // Register the appropriate formatter based on configuration
+        if (useAiFormatter)
+        {
+            services.AddSingleton<IMcpResponseFormatter, AiConsumptionFormatter>();
+        }
+        else
+        {
+            services.AddSingleton<IMcpResponseFormatter, McpResponseFormatter>();
+        }
+
         return services;
     }
 }

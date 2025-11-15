@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "dotnet-dll-reflector": {
+      "type": "stdio",
+      "command": "S:/mcp-dotnet-dll-reflector/McpNetDll/bin/Release/net9.0/publish/McpNetDll.exe",
+      "args": ["S:/DPB2/DreamPoeBot.dll"]
+    },
+    "dotnet-dll-reflector-multiple": {
+      "type": "stdio",
+      "command": "S:/mcp-dotnet-dll-reflector/McpNetDll/bin/Release/net9.0/publish/McpNetDll.exe",
+      "args": ["S:/DPB2/DreamPoeBot.dll", "S:/path/to/another.dll"]
+    }
+  }
+}
