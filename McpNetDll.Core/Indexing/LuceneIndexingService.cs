@@ -599,6 +599,12 @@ namespace McpNetDll.Core.Indexing
         {
             try
             {
+                if (_indexDirectory == null)
+                {
+                    Console.WriteLine("Index directory is null, cannot refresh searcher");
+                    return;
+                }
+
                 _directoryReader?.Dispose();
                 _directoryReader = DirectoryReader.Open(_indexDirectory);
                 _indexSearcher = new IndexSearcher(_directoryReader);
@@ -607,6 +613,7 @@ namespace McpNetDll.Core.Indexing
             {
                 Console.WriteLine($"Failed to refresh searcher: {ex.Message}");
                 _indexSearcher = null;
+                _directoryReader = null;
             }
         }
 

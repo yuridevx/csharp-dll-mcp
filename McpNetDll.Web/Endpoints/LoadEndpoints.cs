@@ -1,3 +1,4 @@
+using McpNetDll.Core.Indexing;
 using McpNetDll.Helpers;
 using McpNetDll.Registry;
 
@@ -7,7 +8,7 @@ public static class LoadEndpoints
 {
     public static void MapLoadEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/load", (ITypeRegistry registry, string path) =>
+        app.MapPost("/api/load", (ITypeRegistry registry, IIndexingService indexingService, string path) =>
         {
             if (string.IsNullOrWhiteSpace(path))
                 return Results.BadRequest(new { error = "Path is required" });
@@ -23,12 +24,16 @@ public static class LoadEndpoints
                     return Results.BadRequest(new { error = $"Failed to load assembly: {string.Join("; ", errors)}" });
                 }
 
+                // Rebuild the index after loading new DLL
+                indexingService.UpdateIndex();
+
                 return Results.Json(new
                 {
-                    message = "Loaded",
+                    message = "Loaded and indexed",
                     path,
                     namespaces = registry.GetAllNamespaces().Count,
                     types = registry.GetAllTypes().Count,
+                    indexed = indexingService.GetStatistics().TotalDocuments,
                     errors = errors
                 });
             }
