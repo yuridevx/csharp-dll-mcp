@@ -1,507 +1,2028 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1" name="viewport"/>
-    <title>McpNetDll - DLL Browser</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>McpNetDll - .NET Assembly Browser</title>
     <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --bg-surface: #ffffff;
+            --bg-surface-hover: #f8fafc;
+            --bg-surface-active: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --text-inverse: #ffffff;
+            --border-color: #e2e8f0;
+            --border-focus: #3b82f6;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+            --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            --transition: 150ms ease;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-            margin: 0;
-        }
-
-        header {
-            padding: 12px 16px;
-            background: #0f172a;
-            color: #fff;
-        }
-
-        main {
-            display: grid;
-            grid-template-columns: 280px 320px 1fr;
-            height: calc(100vh - 52px);
-        }
-
-        aside {
-            border-right: 1px solid #e5e7eb;
-            padding: 12px;
-            overflow: auto;
-        }
-
-        section {
-            padding: 12px;
-            overflow: auto;
-        }
-
-        input, button {
-            padding: 8px;
+            font-family: var(--font-sans);
             font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-primary);
+            background: var(--bg-surface-active);
+            height: 100vh;
+            overflow: hidden;
         }
 
-        .ns {
-            font-weight: 600;
-            margin-top: 8px;
-            cursor: pointer;
+        /* Layout */
+        .app {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
         }
 
-        .type {
-            margin: 4px 0;
-            color: #334155;
-            cursor: pointer;
+        /* Header */
+        .header {
+            background: var(--bg-primary);
+            padding: 0 16px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: var(--shadow-md);
+            z-index: 100;
         }
 
-        pre {
-            background: #0b1020;
-            color: #e5e7eb;
-            padding: 12px;
-            border-radius: 8px;
-            overflow: auto;
+        .logo {
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--text-inverse);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .row {
+        .logo svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .search-container {
+            flex: 1;
+            max-width: 700px;
+            position: relative;
+            display: flex;
+            gap: 12px;
+        }
+
+        .search-wrapper {
+            display: flex;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .search-label {
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            border-right: 1px solid var(--bg-primary);
+            white-space: nowrap;
+        }
+
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-inverse);
+            padding: 10px 14px;
+            font-size: 14px;
+            outline: none;
+            min-width: 200px;
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search-input:focus {
+            outline: none;
+            box-shadow: inset 0 0 0 1px var(--accent);
+        }
+
+        /* Header actions */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: auto;
+        }
+
+        .load-dll {
             display: flex;
             gap: 8px;
-            align-items: center;
         }
 
-        .error {
-            color: #b91c1c;
+        .load-dll input {
+            background: var(--bg-secondary);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: var(--text-inverse);
+            padding: 8px 12px;
+            font-size: 13px;
+            width: 240px;
         }
 
-        table {
-            border-collapse: collapse;
-            width: 100%;
+        .load-dll input::placeholder {
+            color: var(--text-muted);
         }
 
-        th, td {
-            border: 1px solid #e5e7eb;
-            padding: 6px 8px;
-            text-align: left;
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background var(--transition);
         }
 
-        th {
-            background: #f8fafc;
-        }
+        .btn:hover { background: var(--accent-hover); }
 
-        .doc {
-            color: #475569;
-            margin: 6px 0 12px;
-            white-space: pre-wrap;
-        }
-
-        .muted {
-            color: #64748b;
+        .stats {
+            color: var(--text-muted);
             font-size: 12px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-value {
+            color: var(--text-inverse);
+            font-weight: 600;
+        }
+
+        /* Main content */
+        .main {
+            display: grid;
+            grid-template-columns: var(--sidebar-width, 300px) auto 1fr;
+            overflow: hidden;
+        }
+
+        /* Resize handle */
+        .resize-handle {
+            width: 4px;
+            background: var(--border-color);
+            cursor: col-resize;
+            transition: background var(--transition);
+            position: relative;
+        }
+
+        .resize-handle:hover,
+        .resize-handle.dragging {
+            background: var(--accent);
+        }
+
+        .resize-handle::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: -4px;
+            right: -4px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-surface-hover);
+        }
+
+        .sidebar-title {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .sidebar-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 4px 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sidebar-btn:hover {
+            background: var(--bg-surface-active);
+            border-color: var(--text-muted);
+            color: var(--text-primary);
+        }
+
+        .sidebar-btn svg {
+            display: block;
+        }
+
+        .sidebar-filter {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .filter-input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            outline: none;
+            transition: border-color var(--transition);
+        }
+
+        .filter-input:focus {
+            border-color: var(--border-focus);
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow: auto;
+            padding: 8px 0;
+        }
+
+        /* Namespace tree */
+        .ns-tree {
+            list-style: none;
+        }
+
+        .ns-tree ul {
+            list-style: none;
+            padding-left: 16px;
+        }
+
+        .ns-item {
+            user-select: none;
+        }
+
+        .ns-header {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            margin: 1px 8px;
+            transition: background var(--transition);
+        }
+
+        .ns-header:hover {
+            background: var(--bg-surface-hover);
+        }
+
+        .ns-header.selected {
+            background: var(--bg-surface-active);
+        }
+
+        .ns-toggle {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 10px;
+            flex-shrink: 0;
+        }
+
+        .ns-toggle.expanded { transform: rotate(90deg); }
+
+        .ns-name {
+            flex: 1;
+            font-size: 13px;
+            color: var(--text-primary);
+            margin-left: 4px;
+        }
+
+        .ns-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: var(--bg-surface-active);
+            padding: 1px 6px;
+            border-radius: 10px;
+        }
+
+        .ns-types {
+            display: none;
+        }
+
+        .ns-types.expanded {
+            display: block;
+        }
+
+        .type-item {
+            display: flex;
+            align-items: center;
+            padding: 5px 12px 5px 32px;
+            cursor: pointer;
+            margin: 1px 8px;
+            border-radius: var(--radius-sm);
+            transition: background var(--transition);
+        }
+
+        .type-item:hover {
+            background: var(--bg-surface-hover);
+        }
+
+        .type-item.selected {
+            background: #dbeafe;
+        }
+
+        .type-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+
+        .type-icon.class { background: #dbeafe; color: #1d4ed8; }
+        .type-icon.interface { background: #dcfce7; color: #166534; }
+        .type-icon.enum { background: #e0e7ff; color: #4338ca; }
+        .type-icon.struct { background: #fef3c7; color: #92400e; }
+        .type-icon.delegate { background: #fce7f3; color: #9d174d; }
+
+        .type-name {
+            font-size: 13px;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Content area */
+        .content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-surface-active);
+        }
+
+        .content-header {
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 24px;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .breadcrumb a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .type-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .type-header-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .type-header-info h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .type-header-info .type-namespace {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+        }
+
+        .type-doc {
+            margin-top: 12px;
+            padding: 12px;
+            background: var(--bg-surface-hover);
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Member panels */
+        .panels {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 16px 24px;
+            overflow: auto;
+        }
+
+        .panel {
+            background: var(--bg-surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .panel-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-surface-hover);
+            flex-shrink: 0;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-count {
+            font-size: 11px;
+            padding: 2px 8px;
+            background: var(--bg-surface-active);
+            border-radius: 10px;
+            color: var(--text-secondary);
+            font-weight: normal;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow: auto;
+        }
+
+        .panel-empty {
+            padding: 24px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* Member table */
+        .member-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .member-table th {
+            text-align: left;
+            padding: 8px 12px;
+            background: var(--bg-surface-hover);
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .member-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
+
+        .member-table tr:hover td {
+            background: var(--bg-surface-hover);
+        }
+
+        .member-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .member-type {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--accent);
+        }
+
+        .member-type a {
+            color: var(--accent);
+            text-decoration: none;
+            cursor: pointer;
+            border-radius: 2px;
+            padding: 0 2px;
+            margin: 0 -2px;
+            transition: background var(--transition), color var(--transition);
+        }
+
+        .member-type a:hover {
+            text-decoration: underline;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .member-params a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .member-params a:hover {
+            text-decoration: underline;
+        }
+
+        .member-params {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .member-doc {
+            font-size: 12px;
+            color: var(--text-muted);
+            max-width: 300px;
+        }
+
+        .badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin-left: 6px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .badge-static {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            padding: 40px;
+            text-align: center;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            max-width: 300px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .toast {
+            background: var(--bg-primary);
+            color: var(--text-inverse);
+            padding: 12px 20px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            margin-top: 8px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.error {
+            background: var(--error);
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Loading spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Keyboard shortcut hints */
+        .kbd {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 2px 6px;
+            background: var(--bg-surface-active);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            color: var(--text-muted);
+        }
+
+        /* Full-page search results */
+        .search-view {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .search-view.active {
+            display: flex;
+        }
+
+        .search-header {
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 24px;
+        }
+
+        .search-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .search-header .search-query {
+            font-family: var(--font-mono);
+            color: var(--accent);
+            background: rgba(59, 130, 246, 0.1);
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+        }
+
+        .search-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .search-meta .facets {
+            display: flex;
+            gap: 8px;
+        }
+
+        .search-meta .facet {
+            font-size: 12px;
+            padding: 4px 10px;
+            background: var(--bg-surface-active);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .search-meta .facet:hover {
+            background: var(--border-color);
+        }
+
+        .search-meta .facet.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .search-body {
+            flex: 1;
+            overflow: auto;
+            padding: 16px 24px;
+        }
+
+        .search-section {
+            margin-bottom: 24px;
+        }
+
+        .search-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .search-section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .search-section-count {
+            font-size: 12px;
+            padding: 2px 8px;
+            background: var(--bg-surface-active);
+            border-radius: 10px;
+            color: var(--text-secondary);
+        }
+
+        .search-result-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .search-result-card:hover {
+            border-color: var(--accent);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .search-result-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .search-result-card .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .search-result-card .card-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .search-result-card .card-icon.type { background: #dbeafe; color: #1d4ed8; }
+        .search-result-card .card-icon.method { background: #dcfce7; color: #166534; }
+        .search-result-card .card-icon.property { background: #fef3c7; color: #92400e; }
+        .search-result-card .card-icon.field { background: #fce7f3; color: #9d174d; }
+        .search-result-card .card-icon.enum { background: #e0e7ff; color: #4338ca; }
+
+        .search-result-card .card-title {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .search-result-card .card-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .search-result-card .card-namespace {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .search-result-card .card-score {
+            font-size: 11px;
+            color: var(--accent);
+            font-weight: 500;
+            background: rgba(59, 130, 246, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .search-result-card .card-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .search-result-card .card-detail {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .search-result-card .card-detail-label {
+            color: var(--text-muted);
+        }
+
+        .search-result-card .card-detail-value {
+            font-family: var(--font-mono);
+            color: var(--accent);
+        }
+
+        .search-result-card .card-doc {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .search-no-results {
+            text-align: center;
+            padding: 60px 40px;
+            color: var(--text-muted);
+        }
+
+        .search-no-results svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .search-no-results h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .clear-search-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .clear-search-btn:hover {
+            background: var(--bg-surface-active);
+            border-color: var(--text-muted);
         }
     </style>
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <div class="logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                McpNetDll
+            </div>
+
+            <div class="search-container">
+                <div class="search-wrapper">
+                    <span class="search-label">Keywords</span>
+                    <input type="text" class="search-input" id="keywordInput" placeholder="Search by keywords...">
+                </div>
+                <div class="search-wrapper">
+                    <span class="search-label">Regex</span>
+                    <input type="text" class="search-input" id="regexInput" placeholder="Search by pattern...">
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <div class="load-dll">
+                    <input type="text" id="dllPath" placeholder="Path to DLL...">
+                    <button class="btn" id="loadBtn">Load</button>
+                </div>
+                <div class="stats" id="stats">
+                    <span class="stat"><span class="stat-value" id="statNs">0</span> namespaces</span>
+                    <span class="stat"><span class="stat-value" id="statTypes">0</span> types</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <span class="sidebar-title">Browser</span>
+                    <div class="sidebar-actions">
+                        <button class="sidebar-btn" id="expandAllBtn" title="Expand All">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/>
+                            </svg>
+                        </button>
+                        <button class="sidebar-btn" id="collapseAllBtn" title="Collapse All">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 6h16M4 12h16M4 18h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="sidebar-filter">
+                    <input type="text" class="filter-input" id="filterInput" placeholder="Filter...">
+                </div>
+                <div class="sidebar-content" id="sidebarContent">
+                    <ul class="ns-tree" id="nsTree"></ul>
+                </div>
+            </aside>
+
+            <div class="resize-handle" id="resizeHandle"></div>
+
+            <div class="content" id="content">
+                <div class="empty-state" id="emptyState">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                    <h3>Select a Type</h3>
+                    <p>Choose a type from the browser on the left, or use the search to find what you're looking for.</p>
+                </div>
+
+                <div id="typeView" style="display: none; height: 100%; overflow: hidden; flex-direction: column;">
+                    <div class="content-header" id="typeHeader"></div>
+                    <div class="panels" id="panels"></div>
+                </div>
+
+                <div class="search-view" id="searchView">
+                    <div class="search-header" id="searchHeader"></div>
+                    <div class="search-body" id="searchBody"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toasts"></div>
+
     <script>
-        let nsLimit = 50, nsOffset = 0;
-        let selectedNamespace = null;
-        let selectedTypeFullName = null;
-        let knownTypes = new Set();
-        let searchTimer = null;
+        // State
+        const state = {
+            namespaces: [],
+            types: new Map(),
+            knownTypes: new Set(),
+            selectedType: null,
+            expandedNs: new Set(),
+            filter: '',
+            searchTimer: null
+        };
+
+        function getAllNamespaceKeys() {
+            const keys = new Set();
+            state.namespaces.forEach(ns => {
+                const parts = ns.split('.');
+                let path = '';
+                for (const part of parts) {
+                    path = path ? `${path}.${part}` : part;
+                    keys.add(path);
+                }
+            });
+            return keys;
+        }
+
+        function expandAll() {
+            state.expandedNs = getAllNamespaceKeys();
+            renderNamespaceTree();
+        }
+
+        function collapseAll() {
+            state.expandedNs.clear();
+            renderNamespaceTree();
+        }
+
+        // DOM elements
+        const $ = id => document.getElementById(id);
+        const nsTree = $('nsTree');
+        const content = $('content');
+        const emptyState = $('emptyState');
+        const typeView = $('typeView');
+        const typeHeader = $('typeHeader');
+        const panels = $('panels');
+        const keywordInput = $('keywordInput');
+        const regexInput = $('regexInput');
+        const searchView = $('searchView');
+        const searchHeader = $('searchHeader');
+        const searchBody = $('searchBody');
+        const filterInput = $('filterInput');
+
+        // Utilities
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str || '';
+            return div.innerHTML;
+        }
+
+        function toast(message, type = 'info') {
+            const toasts = $('toasts');
+            const t = document.createElement('div');
+            t.className = `toast ${type}`;
+            t.textContent = message;
+            toasts.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        function getTypeIcon(kind) {
+            const icons = {
+                'Class': 'C',
+                'Interface': 'I',
+                'Enum': 'E',
+                'Struct': 'S',
+                'Delegate': 'D'
+            };
+            return icons[kind] || 'T';
+        }
+
+        function getTypeIconClass(kind) {
+            return (kind || 'class').toLowerCase();
+        }
+
+        function getElementIcon(elementType) {
+            const icons = {
+                'Type': 'T',
+                'Method': 'M',
+                'Property': 'P',
+                'Field': 'F',
+                'Enum': 'E'
+            };
+            return icons[elementType] || 'T';
+        }
+
+        function showSearchView() {
+            emptyState.style.display = 'none';
+            typeView.style.display = 'none';
+            searchView.classList.add('active');
+            state.selectedType = null;
+            renderNamespaceTree(); // Update sidebar selection
+        }
+
+        function hideSearchView() {
+            searchView.classList.remove('active');
+        }
+
+        function clearSearch() {
+            keywordInput.value = '';
+            regexInput.value = '';
+            hideSearchView();
+            emptyState.style.display = 'flex';
+        }
+
+        // API calls
+        async function fetchJson(url) {
+            const res = await fetch(url);
+            return res.json();
+        }
+
+        async function loadStats() {
+            try {
+                const info = await fetchJson('/api/info');
+                $('statNs').textContent = info.NamespaceCount || 0;
+                $('statTypes').textContent = info.TypeCount || 0;
+            } catch (e) {
+                console.error('Failed to load stats:', e);
+            }
+        }
+
+        async function loadKnownTypes() {
+            try {
+                const types = await fetchJson('/api/types/list');
+                state.knownTypes = new Set(types || []);
+            } catch (e) {
+                console.error('Failed to load known types:', e);
+            }
+        }
 
         async function loadNamespaces() {
-            const treeRes = await fetch('/api/namespaces/list');
-            const names = await treeRes.json();
-            const namesOut = document.getElementById('nsTree');
-            namesOut.innerHTML = '';
+            try {
+                const names = await fetchJson('/api/namespaces/list');
+                state.namespaces = names || [];
+
+                // Build namespace tree with types
+                const url = new URL('/api/namespaces', location.origin);
+                url.searchParams.set('limit', 1000);
+                const nsData = await fetchJson(url);
+
+                // Store types by namespace
+                state.types.clear();
+                (nsData.Namespaces || []).forEach(ns => {
+                    state.types.set(ns.Name, ns.Types || []);
+                });
+
+                // On first load, start with namespaces collapsed (user can expand via button)
+                // On subsequent loads, use saved expanded state
+                renderNamespaceTree();
+            } catch (e) {
+                console.error('Failed to load namespaces:', e);
+                toast('Failed to load namespaces', 'error');
+            }
+        }
+
+        function renderNamespaceTree() {
+            const filter = state.filter.toLowerCase();
+
+            // Helper to check if a type matches the filter
+            function typeMatchesFilter(t, filter) {
+                if (!filter) return true;
+                // Check type name
+                if (t.Name && t.Name.toLowerCase().includes(filter)) return true;
+                // Check properties
+                if (t.Properties && t.Properties.some(p => p.Name && p.Name.toLowerCase().includes(filter))) return true;
+                // Check methods
+                if (t.Methods && t.Methods.some(m => m.Name && m.Name.toLowerCase().includes(filter))) return true;
+                // Check fields
+                if (t.Fields && t.Fields.some(f => f.Name && f.Name.toLowerCase().includes(filter))) return true;
+                return false;
+            }
+
+            // Helper to check if namespace or any of its types match
+            function nsMatchesFilter(ns, filter) {
+                if (!filter) return true;
+                // Check namespace name
+                if (ns.toLowerCase().includes(filter)) return true;
+                // Check types in this namespace
+                const types = state.types.get(ns) || [];
+                return types.some(t => typeMatchesFilter(t, filter));
+            }
+
+            // Build tree structure
             const root = {};
-            (names || []).forEach(ns => {
+            state.namespaces.forEach(ns => {
+                if (filter && !nsMatchesFilter(ns, filter)) return;
+
                 const parts = ns.split('.');
                 let cur = root;
                 for (const p of parts) {
-                    cur[p] = cur[p] || {};
-                    cur = cur[p];
+                    if (!cur[p]) cur[p] = { _children: {}, _fullName: '', _types: [], _filteredTypes: [] };
+                    cur = cur[p]._children;
                 }
             });
 
-            function render(node, path, container) {
-                const ul = document.createElement('ul');
-                ul.style.listStyle = 'none';
-                ul.style.paddingLeft = '12px';
+            // Assign full names and types (filtered)
+            function assignMeta(node, path) {
+                Object.keys(node).forEach(key => {
+                    const fullName = path ? `${path}.${key}` : key;
+                    node[key]._fullName = fullName;
+                    const allTypes = state.types.get(fullName) || [];
+                    // Filter types if there's a filter
+                    node[key]._types = filter
+                        ? allTypes.filter(t => typeMatchesFilter(t, filter))
+                        : allTypes;
+                    assignMeta(node[key]._children, fullName);
+                });
+            }
+            assignMeta(root, '');
+
+            // Render tree
+            function renderNode(node, container) {
                 const keys = Object.keys(node).sort();
-                keys.forEach(k => {
-                    const full = path ? path + '.' + k : k;
+                keys.forEach(key => {
+                    const data = node[key];
+                    const fullName = data._fullName;
+                    const types = data._types;
+                    const hasChildren = Object.keys(data._children).length > 0;
+                    const isExpanded = state.expandedNs.has(fullName);
+
                     const li = document.createElement('li');
-                    const a = document.createElement('a');
-                    a.textContent = k;
-                    a.href = '#ns=' + encodeURIComponent(full);
-                    li.appendChild(a);
-                    ul.appendChild(li);
-                    render(node[k], full, li);
-                });
-                container.appendChild(ul);
-            }
+                    li.className = 'ns-item';
 
-            render(root, '', namesOut);
+                    const header = document.createElement('div');
+                    header.className = 'ns-header' + (state.selectedType && state.selectedType.startsWith(fullName + '.') ? ' selected' : '');
+                    header.setAttribute('data-ns', fullName);
+                    header.innerHTML = `
+                        <span class="ns-toggle ${isExpanded ? 'expanded' : ''}">${hasChildren || types.length ? '▶' : ''}</span>
+                        <span class="ns-name">${escapeHtml(key)}</span>
+                        ${types.length ? `<span class="ns-count">${types.length}</span>` : ''}
+                    `;
 
-            // Also load paged namespaces+types for right list
-            const url = new URL('/api/namespaces', location.origin);
-            url.searchParams.set('limit', nsLimit);
-            url.searchParams.set('offset', nsOffset);
-            const res = await fetch(url);
-            const json = await res.json();
-            const list = document.getElementById('types');
-            list.innerHTML = '';
-            (json.Namespaces || []).forEach(ns => {
-                const nsHdr = document.createElement('div');
-                nsHdr.className = 'ns';
-                nsHdr.textContent = ns.Name + ' (' + ns.TypeCount + ')';
-                list.appendChild(nsHdr);
-                (ns.Types || []).forEach(t => {
-                    const tEl = document.createElement('div');
-                    tEl.className = 'type';
-                    tEl.textContent = t.Name + ' [' + t.TypeKind + ']';
-                    tEl.onclick = () => {
-                        location.hash = '#type=' + encodeURIComponent(t.Namespace + '.' + t.Name);
+                    header.onclick = (e) => {
+                        e.stopPropagation();
+                        if (hasChildren || types.length) {
+                            if (state.expandedNs.has(fullName)) {
+                                state.expandedNs.delete(fullName);
+                            } else {
+                                state.expandedNs.add(fullName);
+                            }
+                            renderNamespaceTree();
+                        }
                     };
-                    list.appendChild(tEl);
+
+                    li.appendChild(header);
+
+                    if (isExpanded) {
+                        // Render types
+                        if (types.length) {
+                            const typesList = document.createElement('div');
+                            typesList.className = 'ns-types expanded';
+                            types.forEach(t => {
+                                const typeFullName = `${t.Namespace}.${t.Name}`;
+                                const typeEl = document.createElement('div');
+                                typeEl.className = 'type-item' + (state.selectedType === typeFullName ? ' selected' : '');
+                                typeEl.innerHTML = `
+                                    <span class="type-icon ${getTypeIconClass(t.TypeKind)}">${getTypeIcon(t.TypeKind)}</span>
+                                    <span class="type-name">${escapeHtml(t.Name)}</span>
+                                `;
+                                typeEl.onclick = (e) => {
+                                    e.stopPropagation();
+                                    selectType(typeFullName);
+                                };
+                                typesList.appendChild(typeEl);
+                            });
+                            li.appendChild(typesList);
+                        }
+
+                        // Render child namespaces
+                        if (hasChildren) {
+                            const ul = document.createElement('ul');
+                            renderNode(data._children, ul);
+                            li.appendChild(ul);
+                        }
+                    }
+
+                    container.appendChild(li);
                 });
-            });
-            // Update types summary based on what is actually displayed
-            const typesDisplayed = (json.Namespaces || []).reduce((n, ns) => n + ((ns.Types || []).length), 0);
-            const typesSummary = document.getElementById('typesSummary');
-            typesSummary.textContent = `Showing ${typesDisplayed} types`;
-            const pager = document.getElementById('pager');
-            pager.innerHTML = '';
-            if (json.Pagination) {
-                const {Total, Limit, Offset, HasMore} = json.Pagination;
-                const info = document.createElement('span');
-                info.textContent = `Namespaces ${Total}, showing ${Offset + 1}-${Math.min(Offset + Limit, Total)}`;
-                pager.appendChild(info);
-                const prev = document.createElement('button');
-                prev.textContent = 'Prev';
-                prev.disabled = Offset <= 0;
-                prev.onclick = () => {
-                    nsOffset = Math.max(0, Offset - Limit);
-                    loadNamespaces();
-                };
-                pager.appendChild(prev);
-                const next = document.createElement('button');
-                next.textContent = 'Next';
-                next.disabled = !HasMore;
-                next.onclick = () => {
-                    nsOffset = Offset + Limit;
-                    loadNamespaces();
-                };
-                pager.appendChild(next);
             }
+
+            nsTree.innerHTML = '';
+            renderNode(root, nsTree);
         }
 
         async function selectType(fullName) {
-            selectedTypeFullName = fullName;
-            const url = new URL('/api/types', location.origin);
-            url.searchParams.append('typeNames', fullName);
-            const res = await fetch(url);
-            const json = await res.json();
-            renderType(json);
-        }
+            state.selectedType = fullName;
+            history.pushState(null, '', `#type=${encodeURIComponent(fullName)}`);
+            hideSearchView();
 
-        async function searchRealtime() {
-            const pattern = (document.getElementById('q').value || '').trim();
-            if (!pattern) {
-                return;
-            }
-            const searchType = document.getElementById('searchType').value;
-
-            let url;
-            if (searchType === 'keyword') {
-                // Use keyword search
-                url = new URL('/api/search/keywords', location.origin);
-                url.searchParams.set('keywords', pattern);
-            } else {
-                // Use regex search (default)
-                url = new URL('/api/search', location.origin);
-                url.searchParams.set('pattern', pattern);
-            }
-
-            const res = await fetch(url);
-            const json = await res.json();
-
-            if (searchType === 'keyword') {
-                renderKeywordSearch(json);
-            } else {
-                renderSearch(json);
-            }
-        }
-
-        function htmlEscape(s) {
-            return (s || '').replace(/[&<>\"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
-        }
-
-        function renderType(json) {
-            const out = document.getElementById('output');
-            if (json.error) {
-                out.innerHTML = `<div class="error">${json.error}</div>`;
-                return;
-            }
-            const types = json.Types || [];
-            if (!types.length) {
-                out.textContent = 'No types';
-                return;
-            }
-            const t = types[0];
-            let html = '';
-            html += `<h3>${htmlEscape(t.Namespace)}.${htmlEscape(t.Name)} <small>[${htmlEscape(t.TypeKind)}]</small></h3>`;
-            if (t.Documentation) {
-                html += `<div class="doc">${htmlEscape(t.Documentation)}</div>`;
-            }
-            if (t.Properties && t.Properties.length) {
-                const inst = t.Properties.filter(p => !p.IsStatic);
-                const stat = t.Properties.filter(p => p.IsStatic);
-                if (inst.length) {
-                    html += '<h4>Instance Properties</h4><table><tr><th>Name</th><th>Type</th><th>Doc</th></tr>';
-                    inst.forEach(p => html += `<tr><td>${htmlEscape(p.Name)}</td><td>${renderTypeRef(p.Type)}</td><td>${htmlEscape(p.Documentation || '')}</td></tr>`);
-                    html += '</table>';
+            // Auto-expand namespace hierarchy to show selected type
+            const lastDot = fullName.lastIndexOf('.');
+            if (lastDot > 0) {
+                const namespace = fullName.substring(0, lastDot);
+                // Expand all parent namespaces
+                const parts = namespace.split('.');
+                let path = '';
+                for (const part of parts) {
+                    path = path ? `${path}.${part}` : part;
+                    state.expandedNs.add(path);
                 }
-                if (stat.length) {
-                    html += '<h4>Static Properties</h4><table><tr><th>Name</th><th>Type</th><th>Doc</th></tr>';
-                    stat.forEach(p => html += `<tr><td>${htmlEscape(p.Name)}</td><td>${renderTypeRef(p.Type)}</td><td>${htmlEscape(p.Documentation || '')}</td></tr>`);
-                    html += '</table>';
+            }
+
+            try {
+                const url = new URL('/api/types', location.origin);
+                url.searchParams.append('typeNames', fullName);
+                const json = await fetchJson(url);
+
+                if (json.error || !json.Types || !json.Types.length) {
+                    toast('Type not found', 'error');
+                    return;
                 }
-                html += '</table>';
+
+                renderType(json.Types[0]);
+                renderNamespaceTree(); // Update selection highlight and expanded state
+
+                // Scroll selected type into view in sidebar
+                setTimeout(() => {
+                    const selectedEl = document.querySelector('.type-item.selected');
+                    if (selectedEl) {
+                        selectedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            } catch (e) {
+                console.error('Failed to load type:', e);
+                toast('Failed to load type details', 'error');
             }
-            if (t.Methods && t.Methods.length) {
-                html += '<h4>Methods</h4><table><tr><th>Name</th><th>Return</th><th>Parameters</th><th>Static</th><th>Doc</th></tr>';
-                t.Methods.forEach(m => {
-                    const prm = (m.Parameters || []).map(p => `${renderTypeRef(p.Type)} ${htmlEscape(p.Name)}`.trim()).join(', ');
-                    html += `<tr><td>${htmlEscape(m.Name)}</td><td>${renderTypeRef(m.ReturnType)}</td><td>${prm}</td><td>${m.IsStatic ? 'yes' : ''}</td><td>${htmlEscape(m.Documentation || '')}</td></tr>`;
-                });
-                html += '</table>';
-            }
-            if (t.EnumValues && t.EnumValues.length) {
-                html += '<h4>Enum Values</h4><table><tr><th>Name</th><th>Value</th></tr>';
-                t.EnumValues.forEach(ev => html += `<tr><td>${htmlEscape(ev.Name)}</td><td>${htmlEscape(ev.Value ?? '')}</td></tr>`);
-                html += '</table>';
-            }
-            if (t.Fields && t.Fields.length) {
-                html += '<h4>Fields</h4><table><tr><th>Name</th><th>Type</th><th>Offset</th><th>Static</th><th>Doc</th></tr>';
-                t.Fields.forEach(f => html += `<tr><td>${htmlEscape(f.Name)}</td><td>${renderTypeRef(f.Type)}</td><td>${f.Offset ?? ''}</td><td>${f.IsStatic ? 'yes' : ''}</td><td>${htmlEscape(f.Documentation || '')}</td></tr>`);
-                html += '</table>';
-            }
-            out.innerHTML = html;
         }
 
         function renderTypeRef(typeName) {
-            const full = String(typeName || '');
-            // If we can split into namespace + name, make it clickable
-            const lastDot = full.lastIndexOf('.');
-            if (lastDot > 0) {
-                const ns = full.substring(0, lastDot);
-                const name = full.substring(lastDot + 1);
-                if (knownTypes.has(full)) {
-                    const href = `#type=${encodeURIComponent(full)}`;
-                    return `<a href="${href}">${htmlEscape(full)}</a>`;
-                }
+            if (!typeName) return '';
+            const full = String(typeName);
+            if (state.knownTypes.has(full)) {
+                return `<a href="#type=${encodeURIComponent(full)}">${escapeHtml(full)}</a>`;
             }
-            return htmlEscape(full);
+            return escapeHtml(full);
         }
 
-        function renderSearch(json) {
-            const out = document.getElementById('output');
-            if (json.error) {
-                out.innerHTML = `<div class="error">${json.error}</div>`;
+        function renderType(type) {
+            emptyState.style.display = 'none';
+            typeView.style.display = 'flex';
+
+            const nsParts = type.Namespace ? type.Namespace.split('.') : [];
+            const breadcrumbHtml = nsParts.map((part, i) => {
+                const nsPath = nsParts.slice(0, i + 1).join('.');
+                return `<a href="#ns=${encodeURIComponent(nsPath)}">${escapeHtml(part)}</a>`;
+            }).join(' <span>/</span> ');
+
+            typeHeader.innerHTML = `
+                <div class="breadcrumb">${breadcrumbHtml}</div>
+                <div class="type-header">
+                    <div class="type-header-icon type-icon ${getTypeIconClass(type.TypeKind)}">
+                        ${getTypeIcon(type.TypeKind)}
+                    </div>
+                    <div class="type-header-info">
+                        <h1>${escapeHtml(type.Name)}</h1>
+                        <div class="type-namespace">${escapeHtml(type.Namespace)}</div>
+                    </div>
+                </div>
+                ${type.Documentation ? `<div class="type-doc">${escapeHtml(type.Documentation)}</div>` : ''}
+            `;
+
+            // Separate static and instance members
+            const props = type.Properties || [];
+            const methods = type.Methods || [];
+            const fields = type.Fields || [];
+            const enumValues = type.EnumValues || [];
+
+            const instanceProps = props.filter(p => !p.IsStatic);
+            const staticProps = props.filter(p => p.IsStatic);
+            const instanceMethods = methods.filter(m => !m.IsStatic);
+            const staticMethods = methods.filter(m => m.IsStatic);
+            const instanceFields = fields.filter(f => !f.IsStatic);
+            const staticFields = fields.filter(f => f.IsStatic);
+
+            let panelsHtml = '';
+
+            // Helper to render property table
+            const renderPropsTable = (items) => items.map(p => `
+                <tr>
+                    <td class="member-name">${escapeHtml(p.Name)}</td>
+                    <td class="member-type">${renderTypeRef(p.Type)}</td>
+                    <td class="member-doc">${escapeHtml(p.Documentation || '')}</td>
+                </tr>
+            `).join('');
+
+            // Helper to render method table
+            const renderMethodsTable = (items) => items.map(m => {
+                const params = (m.Parameters || []).map(p =>
+                    `<span class="member-type">${renderTypeRef(p.Type)}</span> ${escapeHtml(p.Name)}`
+                ).join(', ');
+                return `
+                    <tr>
+                        <td class="member-name">${escapeHtml(m.Name)}</td>
+                        <td class="member-type">${renderTypeRef(m.ReturnType)}</td>
+                        <td class="member-params">${params || '—'}</td>
+                        <td class="member-doc">${escapeHtml(m.Documentation || '')}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Helper to render fields table
+            const renderFieldsTable = (items) => items.map(f => `
+                <tr>
+                    <td class="member-name">${escapeHtml(f.Name)}</td>
+                    <td class="member-type">${renderTypeRef(f.Type)}</td>
+                    <td>${f.Offset != null ? f.Offset : '—'}</td>
+                    <td class="member-doc">${escapeHtml(f.Documentation || '')}</td>
+                </tr>
+            `).join('');
+
+            // Instance Properties
+            if (instanceProps.length) {
+                panelsHtml += `
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span class="panel-title">Instance Properties <span class="panel-count">${instanceProps.length}</span></span>
+                        </div>
+                        <div class="panel-content">
+                            <table class="member-table">
+                                <thead><tr><th>Name</th><th>Type</th><th>Documentation</th></tr></thead>
+                                <tbody>${renderPropsTable(instanceProps)}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Static Properties
+            if (staticProps.length) {
+                panelsHtml += `
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span class="panel-title">Static Properties <span class="panel-count">${staticProps.length}</span></span>
+                        </div>
+                        <div class="panel-content">
+                            <table class="member-table">
+                                <thead><tr><th>Name</th><th>Type</th><th>Documentation</th></tr></thead>
+                                <tbody>${renderPropsTable(staticProps)}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Instance Methods
+            if (instanceMethods.length) {
+                panelsHtml += `
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span class="panel-title">Instance Methods <span class="panel-count">${instanceMethods.length}</span></span>
+                        </div>
+                        <div class="panel-content">
+                            <table class="member-table">
+                                <thead><tr><th>Name</th><th>Returns</th><th>Parameters</th><th>Doc</th></tr></thead>
+                                <tbody>${renderMethodsTable(instanceMethods)}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Static Methods
+            if (staticMethods.length) {
+                panelsHtml += `
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span class="panel-title">Static Methods <span class="panel-count">${staticMethods.length}</span></span>
+                        </div>
+                        <div class="panel-content">
+                            <table class="member-table">
+                                <thead><tr><th>Name</th><th>Returns</th><th>Parameters</th><th>Doc</th></tr></thead>
+                                <tbody>${renderMethodsTable(staticMethods)}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Instance Fields
+            if (instanceFields.length) {
+                panelsHtml += `
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span class="panel-title">Instance Fields <span class="panel-count">${instanceFields.length}</span></span>
+                        </div>
+                        <div class="panel-content">
+                            <table class="member-table">
+                                <thead><tr><th>Name</th><th>Type</th><th>Offset</th><th>Doc</th></tr></thead>
+                                <tbody>${renderFieldsTable(instanceFields)}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Static Fields
+            if (staticFields.length) {
+                panelsHtml += `
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span class="panel-title">Static Fields <span class="panel-count">${staticFields.length}</span></span>
+                        </div>
+                        <div class="panel-content">
+                            <table class="member-table">
+                                <thead><tr><th>Name</th><th>Type</th><th>Offset</th><th>Doc</th></tr></thead>
+                                <tbody>${renderFieldsTable(staticFields)}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Enum values panel
+            if (enumValues.length) {
+                panelsHtml += `
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span class="panel-title">Enum Values <span class="panel-count">${enumValues.length}</span></span>
+                        </div>
+                        <div class="panel-content">
+                            <table class="member-table">
+                                <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                                <tbody>
+                                    ${enumValues.map(ev => `
+                                        <tr>
+                                            <td class="member-name">${escapeHtml(ev.Name)}</td>
+                                            <td>${escapeHtml(String(ev.Value ?? ''))}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // If no members, show empty message
+            if (!panelsHtml) {
+                panelsHtml = `
+                    <div class="panel">
+                        <div class="panel-empty">No public members found for this type.</div>
+                    </div>
+                `;
+            }
+
+            panels.innerHTML = panelsHtml;
+        }
+
+        // Search functionality
+        async function performKeywordSearch() {
+            const query = keywordInput.value.trim();
+            if (!query) {
                 return;
             }
+
+            // Clear the other input
+            regexInput.value = '';
+
+            const url = new URL('/api/search/keywords', location.origin);
+            url.searchParams.set('keywords', query);
+
+            try {
+                const json = await fetchJson(url);
+                renderSearchResults(json, true, query);
+            } catch (e) {
+                console.error('Search failed:', e);
+                toast('Search failed', 'error');
+            }
+        }
+
+        async function performRegexSearch() {
+            const query = regexInput.value.trim();
+            if (!query) {
+                return;
+            }
+
+            // Clear the other input
+            keywordInput.value = '';
+
+            const url = new URL('/api/search', location.origin);
+            url.searchParams.set('pattern', query);
+
+            try {
+                const json = await fetchJson(url);
+                renderSearchResults(json, false, query);
+            } catch (e) {
+                console.error('Search failed:', e);
+                toast('Search failed', 'error');
+            }
+        }
+
+        function renderSearchResults(json, isKeyword, query) {
             const results = json.Results || [];
-            if (!results.length) {
-                out.textContent = 'No results';
-                return;
-            }
-            let html = `<h3>${htmlEscape(json.Summary || 'Results')}</h3>`;
-            html += '<table><tr><th>Kind</th><th>Name</th><th>Parent Type</th><th>Detail</th></tr>';
-            results.forEach(r => {
-                const parent = r.ParentType || r.FullName || '';
-                const parentLink = (parent && knownTypes.has(parent)) ? `<a href="#type=${encodeURIComponent(parent)}">${htmlEscape(parent)}</a>` : htmlEscape(parent);
-                let nameCell;
-                if (r.ElementType === 'Type' && r.FullName && knownTypes.has(r.FullName)) {
-                    nameCell = `<a href="#type=${encodeURIComponent(r.FullName)}">${htmlEscape(r.Name)}</a>`;
-                } else if (parent && knownTypes.has(parent)) {
-                    nameCell = `<a href="#type=${encodeURIComponent(parent)}">${htmlEscape(r.Name)}</a>`;
-                } else {
-                    nameCell = htmlEscape(r.Name);
-                }
-                const detailRaw = r.ReturnType || r.PropertyType || r.FieldType || r.Value || '';
-                const detail = renderTypeRef(detailRaw);
-                html += `<tr><td>${htmlEscape(r.ElementType)}</td><td>${nameCell}</td><td>${parentLink}</td><td>${detail}</td></tr>`;
+            const facetCounts = json.FacetCounts || {};
+
+            showSearchView();
+
+            // Normalize facet type for display (EnumValue -> Enum)
+            const normalizeFacetType = (type) => type === 'EnumValue' ? 'Enum' : type;
+
+            // Merge facet counts for normalized types
+            const normalizedFacets = {};
+            Object.entries(facetCounts).forEach(([type, count]) => {
+                const normalized = normalizeFacetType(type);
+                normalizedFacets[normalized] = (normalizedFacets[normalized] || 0) + count;
             });
-            html += '</table>';
-            out.innerHTML = html;
-        }
 
-        function renderKeywordSearch(json) {
-            const out = document.getElementById('output');
-            if (json.error) {
-                out.innerHTML = `<div class="error">${json.error}</div>`;
-                return;
-            }
-            const results = json.Results || [];
-            if (!results.length) {
-                out.textContent = 'No results found';
-                return;
-            }
+            // Build header
+            const searchType = isKeyword ? 'Keywords' : 'Regex';
+            searchHeader.innerHTML = `
+                <h1>
+                    Search Results
+                    <span class="search-query">${escapeHtml(query)}</span>
+                </h1>
+                <div class="search-meta">
+                    <span>${results.length} results found</span>
+                    <div class="facets" id="searchFacets">
+                        ${Object.entries(normalizedFacets).map(([type, count]) =>
+                            `<span class="facet" data-section="${type.toLowerCase()}">${type}: ${count}</span>`
+                        ).join('')}
+                    </div>
+                    <button class="clear-search-btn" onclick="clearSearch()">Clear Search</button>
+                </div>
+            `;
 
-            let html = `<h3>${htmlEscape(json.Summary || 'Keyword Search Results')}</h3>`;
-
-            // Show facet counts if available
-            if (json.FacetCounts) {
-                const facets = Object.entries(json.FacetCounts)
-                    .map(([type, count]) => `${type}: ${count}`)
-                    .join(' | ');
-                html += `<div style="color: #666; margin-bottom: 10px;">Found: ${facets}</div>`;
-            }
-
-            html += '<table><tr><th>Score</th><th>Kind</th><th>Name</th><th>Parent Type</th><th>Matched Terms</th></tr>';
-            results.forEach(r => {
-                const parent = r.ParentType || '';
-                const parentLink = (parent && knownTypes.has(parent))
-                    ? `<a href="#type=${encodeURIComponent(parent)}">${htmlEscape(parent)}</a>`
-                    : htmlEscape(parent);
-
-                let nameCell;
-                const fullName = r.FullName || r.Name;
-                if (r.ElementType === 'Type' && fullName && knownTypes.has(fullName)) {
-                    nameCell = `<a href="#type=${encodeURIComponent(fullName)}">${htmlEscape(r.Name)}</a>`;
-                } else if (parent && knownTypes.has(parent)) {
-                    nameCell = `<a href="#type=${encodeURIComponent(parent)}">${htmlEscape(r.Name)}</a>`;
-                } else {
-                    nameCell = htmlEscape(r.Name);
-                }
-
-                const matched = (r.MatchedTerms || []).join(', ');
-                const score = r.RelevanceScore || 0;
-
-                html += `<tr>`;
-                html += `<td>${score.toFixed(1)}</td>`;
-                html += `<td>${htmlEscape(r.ElementType)}</td>`;
-                html += `<td>${nameCell}</td>`;
-                html += `<td>${parentLink}</td>`;
-                html += `<td style="color: #0066cc;">${htmlEscape(matched)}</td>`;
-                html += `</tr>`;
-
-                // Show documentation snippet if available
-                if (r.Documentation) {
-                    const docPreview = r.Documentation.length > 150
-                        ? r.Documentation.substring(0, 150) + '...'
-                        : r.Documentation;
-                    html += `<tr><td colspan="5" style="font-size: 0.9em; color: #666; padding-left: 20px;">${htmlEscape(docPreview)}</td></tr>`;
-                }
+            // Add click handlers to facets for scrolling
+            document.querySelectorAll('#searchFacets .facet').forEach(facet => {
+                facet.onclick = () => {
+                    const sectionId = facet.dataset.section;
+                    const section = document.getElementById(`search-section-${sectionId}`);
+                    if (section) {
+                        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                };
             });
-            html += '</table>';
 
-            // Show pagination info
-            if (json.Pagination && json.Pagination.Total > results.length) {
-                html += `<div style="margin-top: 10px; color: #666;">Showing ${results.length} of ${json.Pagination.Total} results</div>`;
+            if (!results.length) {
+                searchBody.innerHTML = `
+                    <div class="search-no-results">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <h3>No results found</h3>
+                        <p>Try adjusting your search query or using different keywords.</p>
+                    </div>
+                `;
+                return;
             }
 
-            out.innerHTML = html;
-        }
+            // Normalize element type names (API returns EnumValue, we display as Enum)
+            const normalizeType = (type) => {
+                if (type === 'EnumValue') return 'Enum';
+                return type || 'Other';
+            };
 
-        function selectNamespace(ns) {
-            selectedNamespace = ns;
-            // Filter types list to this namespace
-            const url = new URL('/api/namespaces', location.origin);
-            url.searchParams.append('namespaces', ns);
-            fetch(url).then(r => r.json()).then(json => {
-                const list = document.getElementById('types');
-                list.innerHTML = '';
-                (json.Namespaces || []).forEach(ns => {
-                    const nsHdr = document.createElement('div');
-                    nsHdr.className = 'ns';
-                    nsHdr.textContent = ns.Name + ' (' + ns.TypeCount + ')';
-                    list.appendChild(nsHdr);
-                    (ns.Types || []).forEach(t => {
-                        const tEl = document.createElement('div');
-                        tEl.className = 'type';
-                        tEl.textContent = t.Name + ' [' + t.TypeKind + ']';
-                        tEl.onclick = () => {
-                            location.hash = '#type=' + encodeURIComponent(t.Namespace + '.' + t.Name);
-                        };
-                        list.appendChild(tEl);
-                    });
-                    // Summary for filtered namespace
-                    const typesSummary = document.getElementById('typesSummary');
-                    typesSummary.textContent = `Total ${ns.TypeCount}, showing 1-${(ns.Types || []).length}`;
-                    // Hide pager when a specific namespace is selected
-                    const pager = document.getElementById('pager');
-                    pager.innerHTML = '';
+            // Group results by element type
+            const grouped = {};
+            results.forEach(r => {
+                const type = normalizeType(r.ElementType);
+                if (!grouped[type]) grouped[type] = [];
+                grouped[type].push(r);
+            });
+
+            // Define order of sections
+            const sectionOrder = ['Type', 'Method', 'Property', 'Field', 'Enum', 'Other'];
+            const orderedTypes = sectionOrder.filter(t => grouped[t]);
+
+            let bodyHtml = '';
+
+            orderedTypes.forEach(elementType => {
+                const items = grouped[elementType];
+                const iconClass = elementType.toLowerCase();
+                const sectionId = elementType.toLowerCase();
+
+                bodyHtml += `
+                    <div class="search-section" id="search-section-${sectionId}">
+                        <div class="search-section-header">
+                            <span class="search-section-title">${elementType}s</span>
+                            <span class="search-section-count">${items.length}</span>
+                        </div>
+                `;
+
+                items.forEach(r => {
+                    const parent = r.ParentType || r.FullName || '';
+                    const targetType = parent || r.FullName || '';
+                    const isClickable = targetType && state.knownTypes.has(targetType);
+                    const score = r.RelevanceScore ? `<span class="card-score">${r.RelevanceScore.toFixed(1)}</span>` : '';
+
+                    // Build details based on element type
+                    let detailsHtml = '';
+                    if (r.ReturnType) {
+                        detailsHtml += `<span class="card-detail"><span class="card-detail-label">Returns:</span> <span class="card-detail-value">${escapeHtml(r.ReturnType)}</span></span>`;
+                    }
+                    if (r.Type) {
+                        detailsHtml += `<span class="card-detail"><span class="card-detail-label">Type:</span> <span class="card-detail-value">${escapeHtml(r.Type)}</span></span>`;
+                    }
+                    if (r.Parameters && r.Parameters.length) {
+                        const params = r.Parameters.map(p => `${p.Type} ${p.Name}`).join(', ');
+                        detailsHtml += `<span class="card-detail"><span class="card-detail-label">Params:</span> <span class="card-detail-value">${escapeHtml(params)}</span></span>`;
+                    }
+                    if (r.IsStatic) {
+                        detailsHtml += `<span class="card-detail"><span class="badge badge-static">Static</span></span>`;
+                    }
+
+                    bodyHtml += `
+                        <div class="search-result-card${isClickable ? '' : ' disabled'}" data-type="${escapeHtml(targetType)}">
+                            <div class="card-header">
+                                <div class="card-icon ${iconClass}">${getElementIcon(elementType)}</div>
+                                <div class="card-title">
+                                    <div class="card-name">${escapeHtml(r.Name)}</div>
+                                    <div class="card-namespace">${escapeHtml(parent)}</div>
+                                </div>
+                                ${score}
+                            </div>
+                            ${detailsHtml ? `<div class="card-details">${detailsHtml}</div>` : ''}
+                            ${r.Documentation ? `<div class="card-doc">${escapeHtml(r.Documentation)}</div>` : ''}
+                        </div>
+                    `;
                 });
+
+                bodyHtml += '</div>';
+            });
+
+            searchBody.innerHTML = bodyHtml;
+
+            // Add click handlers
+            searchBody.querySelectorAll('.search-result-card').forEach(card => {
+                card.onclick = () => {
+                    const typeName = card.dataset.type;
+                    if (typeName && state.knownTypes.has(typeName)) {
+                        selectType(typeName);
+                    } else if (typeName) {
+                        toast(`Type "${typeName}" not found in loaded assemblies`, 'error');
+                    }
+                };
             });
         }
 
+        // Load DLL
+        async function loadDll() {
+            const path = $('dllPath').value.trim();
+            if (!path) return;
+
+            try {
+                const res = await fetch(`/api/load?path=${encodeURIComponent(path)}`, { method: 'POST' });
+                const json = await res.json();
+
+                if (json.error || json.title) {
+                    toast('Load failed: ' + (json.error || json.title), 'error');
+                } else {
+                    toast('DLL loaded successfully', 'success');
+                    $('dllPath').value = '';
+                    await Promise.all([loadStats(), loadKnownTypes(), loadNamespaces()]);
+                }
+            } catch (e) {
+                console.error('Failed to load DLL:', e);
+                toast('Failed to load DLL', 'error');
+            }
+        }
+
+        // Handle URL hash
         function handleHash() {
             const hash = location.hash.slice(1);
             const params = new URLSearchParams(hash);
-            const ns = params.get('ns');
             const type = params.get('type');
-            if (ns) selectNamespace(decodeURIComponent(ns));
-            if (type) selectType(decodeURIComponent(type));
+            const ns = params.get('ns');
+
+            if (type) {
+                selectType(decodeURIComponent(type));
+            }
+            if (ns) {
+                state.expandedNs.add(decodeURIComponent(ns));
+                renderNamespaceTree();
+            }
         }
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const res = await fetch('/api/types/list');
-                const arr = await res.json();
-                knownTypes = new Set(arr || []);
-            } catch {
-            }
-            await loadNamespaces();
-            handleHash();
-            const q = document.getElementById('q');
-            q.addEventListener('input', () => {
-                clearTimeout(searchTimer);
-                searchTimer = setTimeout(searchRealtime, 250);
-            });
+        // Event listeners
+        keywordInput.addEventListener('input', () => {
+            clearTimeout(state.searchTimer);
+            state.searchTimer = setTimeout(performKeywordSearch, 250);
         });
+
+        regexInput.addEventListener('input', () => {
+            clearTimeout(state.searchTimer);
+            state.searchTimer = setTimeout(performRegexSearch, 250);
+        });
+
+        keywordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                clearTimeout(state.searchTimer);
+                performKeywordSearch();
+            }
+        });
+
+        regexInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                clearTimeout(state.searchTimer);
+                performRegexSearch();
+            }
+        });
+
+        filterInput.addEventListener('input', () => {
+            state.filter = filterInput.value;
+            renderNamespaceTree();
+        });
+
+        $('loadBtn').addEventListener('click', loadDll);
+        $('dllPath').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loadDll();
+        });
+
+        $('expandAllBtn').addEventListener('click', expandAll);
+        $('collapseAllBtn').addEventListener('click', collapseAll);
+
         window.addEventListener('hashchange', handleHash);
-    </script>
-</head>
-<body>
-<header>
-    <div class="row">
-        <strong>McpNetDll</strong>
-        <select id="searchType" style="width: 100px;">
-            <option value="keyword">Keywords</option>
-            <option value="regex">Regex</option>
-        </select>
-        <input id="q" placeholder="Enter search terms..." style="flex:1;max-width:380px"/>
-        <input id="dll" placeholder="Path to DLL" style="max-width:320px"/>
-        <button onclick="loadDll()">Load DLL</button>
-    </div>
-</header>
-<main>
-    <aside>
-        <h4>Namespaces</h4>
-        <div id="nsTree"></div>
-    </aside>
-    <aside>
-        <h4>Types</h4>
-        <div class="muted" id="typesSummary"></div>
-        <div id="types"></div>
-        <div id="pager" style="margin-top:12px; display:flex; gap:8px; align-items:center;"></div>
-    </aside>
-    <section>
-        <h4>Details</h4>
-        <div id="output">Select a type or run a search…</div>
-    </section>
-</main>
-<script>
-    async function loadDll() {
-        const path = document.getElementById('dll').value;
-        if (!path) return;
-        const res = await fetch('/api/load?path=' + encodeURIComponent(path), {method: 'POST'});
-        const json = await res.json();
-        if (json.error || json.title) {
-            alert('Load failed: ' + (json.error || json.title));
-        } else {
-            alert('Loaded: ' + path);
-            nsOffset = 0; // reset pager
-            await loadNamespaces();
+
+        // Handle clicks on type reference links in panels
+        panels.addEventListener('click', (e) => {
+            const link = e.target.closest('a[href^="#type="]');
+            if (link) {
+                e.preventDefault();
+                const href = link.getAttribute('href');
+                const typeName = decodeURIComponent(href.replace('#type=', ''));
+                if (state.knownTypes.has(typeName)) {
+                    selectType(typeName);
+                } else {
+                    toast(`Type "${typeName}" not found in loaded assemblies`, 'error');
+                }
+            }
+        });
+
+        // Handle clicks on type reference links in type header
+        typeHeader.addEventListener('click', (e) => {
+            const link = e.target.closest('a[href^="#type="]');
+            if (link) {
+                e.preventDefault();
+                const href = link.getAttribute('href');
+                const typeName = decodeURIComponent(href.replace('#type=', ''));
+                if (state.knownTypes.has(typeName)) {
+                    selectType(typeName);
+                }
+            }
+            // Handle namespace breadcrumb clicks
+            const nsLink = e.target.closest('a[href^="#ns="]');
+            if (nsLink) {
+                e.preventDefault();
+                const href = nsLink.getAttribute('href');
+                const ns = decodeURIComponent(href.replace('#ns=', ''));
+                // Expand to this namespace
+                const parts = ns.split('.');
+                let path = '';
+                for (const part of parts) {
+                    path = path ? `${path}.${part}` : part;
+                    state.expandedNs.add(path);
+                }
+                renderNamespaceTree();
+                // Scroll namespace into view
+                setTimeout(() => {
+                    const nsEl = document.querySelector(`.ns-header[data-ns="${ns}"]`);
+                    if (nsEl) {
+                        nsEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            }
+        });
+
+        // Sidebar resize functionality
+        const resizeHandle = $('resizeHandle');
+        const mainEl = document.querySelector('.main');
+        const sidebar = document.querySelector('.sidebar');
+        const SIDEBAR_WIDTH_KEY = 'mcpnetdll-sidebar-width';
+        const MIN_SIDEBAR_WIDTH = 200;
+        const MAX_SIDEBAR_WIDTH = 600;
+
+        function setSidebarWidth(width) {
+            const clampedWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, width));
+            mainEl.style.setProperty('--sidebar-width', `${clampedWidth}px`);
+            return clampedWidth;
         }
-    }
-</script>
+
+        function loadSidebarWidth() {
+            const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+            if (saved) {
+                const width = parseInt(saved, 10);
+                if (!isNaN(width)) {
+                    setSidebarWidth(width);
+                }
+            }
+        }
+
+        function saveSidebarWidth(width) {
+            localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width));
+        }
+
+        let isResizing = false;
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isResizing = true;
+            resizeHandle.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const newWidth = e.clientX;
+            setSidebarWidth(newWidth);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!isResizing) return;
+            isResizing = false;
+            resizeHandle.classList.remove('dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            // Save the final width
+            const computedWidth = sidebar.getBoundingClientRect().width;
+            saveSidebarWidth(Math.round(computedWidth));
+        });
+
+        // Load saved sidebar width on init
+        loadSidebarWidth();
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+K or Cmd+K to focus keyword search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                keywordInput.focus();
+            }
+            // Escape to clear search and blur inputs
+            if (e.key === 'Escape') {
+                keywordInput.blur();
+                regexInput.blur();
+            }
+        });
+
+        // Initialize
+        async function init() {
+            await Promise.all([loadStats(), loadKnownTypes(), loadNamespaces()]);
+            handleHash();
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
 </body>
 </html>
-
-
