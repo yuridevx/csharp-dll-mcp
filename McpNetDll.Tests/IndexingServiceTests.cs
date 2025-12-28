@@ -307,5 +307,89 @@ namespace McpNetDll.Tests
             // Assert
             Assert.True(results.SearchTimeMs >= 0, "Search time should be measured");
         }
+
+        [Fact]
+        public void SearchByKeywords_WithKeywordOr_FindsAnyMatch()
+        {
+            // Arrange - search for terms where any match is sufficient
+            var keywordOr = new[] { "MyPublicClass", "NonExistentClass12345" };
+
+            // Act
+            var results = _indexingService.SearchByKeywords(keywordOr, null);
+
+            // Assert - should find results for MyPublicClass even though NonExistentClass doesn't exist
+            Assert.NotEmpty(results.Results);
+            Assert.Contains(results.Results, r => r.Name.Contains("MyPublicClass"));
+            Assert.Contains("OR(", results.SearchTerms);
+        }
+
+        [Fact]
+        public void SearchByKeywords_WithKeywordAnd_RequiresAllMatches()
+        {
+            // Arrange - search for terms where all must match
+            var keywordAnd = new[] { "public", "class" };
+
+            // Act
+            var results = _indexingService.SearchByKeywords(null, keywordAnd);
+
+            // Assert - results should contain both terms
+            Assert.NotEmpty(results.Results);
+            Assert.Contains("AND(", results.SearchTerms);
+        }
+
+        [Fact]
+        public void SearchByKeywords_WithBothOrAndAnd_CombinesLogic()
+        {
+            // Arrange - use both OR and AND
+            var keywordOr = new[] { "public", "private" };
+            var keywordAnd = new[] { "class" };
+
+            // Act
+            var results = _indexingService.SearchByKeywords(keywordOr, keywordAnd);
+
+            // Assert - should have results that match (public OR private) AND class
+            Assert.NotEmpty(results.Results);
+            Assert.Contains("OR(", results.SearchTerms);
+            Assert.Contains("AND(", results.SearchTerms);
+        }
+
+        [Fact]
+        public void SearchByKeywords_WithEmptyArrays_ReturnsNoResults()
+        {
+            // Arrange
+            var keywordOr = Array.Empty<string>();
+            var keywordAnd = Array.Empty<string>();
+
+            // Act
+            var results = _indexingService.SearchByKeywords(keywordOr, keywordAnd);
+
+            // Assert
+            Assert.Empty(results.Results);
+        }
+
+        [Fact]
+        public void SearchByKeywords_WithNullArrays_ReturnsNoResults()
+        {
+            // Act
+            var results = _indexingService.SearchByKeywords((string[]?)null, (string[]?)null);
+
+            // Assert
+            Assert.Empty(results.Results);
+        }
+
+        [Fact]
+        public void SearchByKeywords_OrSearch_RespectsSearchScope()
+        {
+            // Arrange
+            var keywordOr = new[] { "test", "public" };
+
+            // Act
+            var typeResults = _indexingService.SearchByKeywords(keywordOr, null, "types");
+            var methodResults = _indexingService.SearchByKeywords(keywordOr, null, "methods");
+
+            // Assert
+            Assert.All(typeResults.Results, r => Assert.Equal("Type", r.ElementType));
+            Assert.All(methodResults.Results, r => Assert.Equal("Method", r.ElementType));
+        }
     }
 }

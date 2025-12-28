@@ -70,8 +70,10 @@ public static class DllMetadataTool
         IIndexingService indexingService,
         IMcpResponseFormatter formatter,
         ITypeRegistry registry,
-        [Description("Space-separated keywords to search for (e.g., 'http client', 'async task', 'configuration builder')")]
-        string keywords,
+        [Description("Keywords where ANY match is sufficient (OR logic). At least one of keyword_or or keyword_and must be provided.")]
+        string[]? keyword_or = null,
+        [Description("Keywords where ALL must match (AND logic). At least one of keyword_or or keyword_and must be provided.")]
+        string[]? keyword_and = null,
         [Description(
             "Optional: Element types to search in. Options: 'all' (default), 'types', 'methods', 'properties', 'fields', 'enums'")]
         string? searchScope = null,
@@ -80,7 +82,7 @@ public static class DllMetadataTool
         [Description("Optional: Number of results to skip (default: 0)")]
         int? offset = null)
     {
-        var result = indexingService.SearchByKeywords(keywords, searchScope ?? "all", limit ?? 100, offset ?? 0);
+        var result = indexingService.SearchByKeywords(keyword_or, keyword_and, searchScope ?? "all", limit ?? 100, offset ?? 0);
         return formatter.FormatKeywordSearchResponse(result, registry);
     }
 }

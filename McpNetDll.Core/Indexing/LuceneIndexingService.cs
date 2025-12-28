@@ -401,7 +401,28 @@ namespace McpNetDll.Core.Indexing
 
         public KeywordSearchResult SearchByKeywords(string keywords, string searchScope = "all", int limit = 100, int offset = 0)
         {
+            // Delegate to the new method with AND logic (existing behavior)
+            var terms = keywords.Replace('+', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return SearchByKeywords(null, terms, searchScope, limit, offset);
+        }
+
+        public KeywordSearchResult SearchByKeywords(string[]? keywordOr, string[]? keywordAnd, string searchScope = "all", int limit = 100, int offset = 0)
+        {
             var sw = Stopwatch.StartNew();
+
+            // Build search terms description for the result
+            var searchTermsParts = new List<string>();
+            if (keywordOr != null && keywordOr.Length > 0)
+                searchTermsParts.Add($"OR({string.Join(", ", keywordOr)})");
+            if (keywordAnd != null && keywordAnd.Length > 0)
+                searchTermsParts.Add($"AND({string.Join(", ", keywordAnd)})");
+            var searchTerms = searchTermsParts.Count > 0 ? string.Join(" ", searchTermsParts) : "";
+
+            // Combine all keywords for highlight matching
+            var allKeywords = new List<string>();
+            if (keywordOr != null) allKeywords.AddRange(keywordOr);
+            if (keywordAnd != null) allKeywords.AddRange(keywordAnd);
+            var keywordsForHighlight = string.Join(" ", allKeywords);
 
             lock (_indexLock)
             {
@@ -412,7 +433,7 @@ namespace McpNetDll.Core.Indexing
                     return new KeywordSearchResult(
                         new List<KeywordSearchHit>(),
                         new PaginationInfo { Total = 0, Limit = limit, Offset = offset },
-                        keywords,
+                        searchTerms,
                         0,
                         new Dictionary<string, int>()
                     );
@@ -421,7 +442,7 @@ namespace McpNetDll.Core.Indexing
                 try
                 {
                     // Build the query
-                    Query query = BuildSearchQuery(keywords, searchScope);
+                    Query query = BuildSearchQuery(keywordOr, keywordAnd, searchScope);
 
                     // Execute search
                     var topDocs = _indexSearcher.Search(query, offset + limit);
@@ -445,7 +466,7 @@ namespace McpNetDll.Core.Indexing
                         var scoreDoc = topDocs.ScoreDocs[i];
                         var doc = _indexSearcher.Doc(scoreDoc.Doc);
 
-                        var hit = ConvertToSearchHit(doc, scoreDoc.Score, keywords);
+                        var hit = ConvertToSearchHit(doc, scoreDoc.Score, keywordsForHighlight);
                         hits.Add(hit);
                     }
 
@@ -454,7 +475,7 @@ namespace McpNetDll.Core.Indexing
                     return new KeywordSearchResult(
                         hits,
                         new PaginationInfo { Total = totalHits, Limit = limit, Offset = offset },
-                        keywords,
+                        searchTerms,
                         sw.Elapsed.TotalMilliseconds,
                         facetCounts
                     );
@@ -465,7 +486,7 @@ namespace McpNetDll.Core.Indexing
                     return new KeywordSearchResult(
                         new List<KeywordSearchHit>(),
                         new PaginationInfo { Total = 0, Limit = limit, Offset = offset },
-                        keywords,
+                        searchTerms,
                         sw.Elapsed.TotalMilliseconds,
                         new Dictionary<string, int>()
                     );
@@ -475,31 +496,66 @@ namespace McpNetDll.Core.Indexing
 
         private Query BuildSearchQuery(string keywords, string searchScope)
         {
+            // Delegate to the new method - existing behavior uses AND logic
+            var terms = keywords.Replace('+', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return BuildSearchQuery(null, terms, searchScope);
+        }
+
+        private Query BuildSearchQuery(string[]? keywordOr, string[]? keywordAnd, string searchScope)
+        {
             var booleanQuery = new BooleanQuery();
 
-            // Handle nested type searches - replace + with space for better matching
-            var searchText = keywords.Replace('+', ' ');
-            var terms = searchText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var hasOrTerms = keywordOr != null && keywordOr.Length > 0;
+            var hasAndTerms = keywordAnd != null && keywordAnd.Length > 0;
 
-            if (terms.Length == 0)
+            if (!hasOrTerms && !hasAndTerms)
             {
                 return booleanQuery; // Empty query
             }
 
-            // Build query for each term across multiple fields
-            foreach (var term in terms)
+            // Build OR query (any of these terms)
+            if (hasOrTerms)
             {
-                var termLower = term.ToLowerInvariant();
-                var termBoolQuery = new BooleanQuery();
+                var orQuery = new BooleanQuery();
+                foreach (var term in keywordOr!)
+                {
+                    // Handle nested type notation
+                    var searchText = term.Replace('+', ' ');
+                    var termLower = searchText.ToLowerInvariant();
+                    var termBoolQuery = new BooleanQuery();
 
-                // Search in multiple fields
-                termBoolQuery.Add(new WildcardQuery(new Term(FIELD_NAME, $"*{termLower}*")), Occur.SHOULD);
-                termBoolQuery.Add(new WildcardQuery(new Term(FIELD_CONTENT, $"*{termLower}*")), Occur.SHOULD);
-                termBoolQuery.Add(new WildcardQuery(new Term(FIELD_DOCUMENTATION, $"*{termLower}*")), Occur.SHOULD);
-                termBoolQuery.Add(new WildcardQuery(new Term(FIELD_PARAMETERS, $"*{termLower}*")), Occur.SHOULD);
+                    // Search in multiple fields
+                    termBoolQuery.Add(new WildcardQuery(new Term(FIELD_NAME, $"*{termLower}*")), Occur.SHOULD);
+                    termBoolQuery.Add(new WildcardQuery(new Term(FIELD_CONTENT, $"*{termLower}*")), Occur.SHOULD);
+                    termBoolQuery.Add(new WildcardQuery(new Term(FIELD_DOCUMENTATION, $"*{termLower}*")), Occur.SHOULD);
+                    termBoolQuery.Add(new WildcardQuery(new Term(FIELD_PARAMETERS, $"*{termLower}*")), Occur.SHOULD);
 
-                // All terms must match somewhere
-                booleanQuery.Add(termBoolQuery, Occur.MUST);
+                    // OR logic - any term can match
+                    orQuery.Add(termBoolQuery, Occur.SHOULD);
+                }
+                // At least one OR term must match
+                booleanQuery.Add(orQuery, Occur.MUST);
+            }
+
+            // Build AND query (all of these terms must match)
+            if (hasAndTerms)
+            {
+                foreach (var term in keywordAnd!)
+                {
+                    // Handle nested type notation
+                    var searchText = term.Replace('+', ' ');
+                    var termLower = searchText.ToLowerInvariant();
+                    var termBoolQuery = new BooleanQuery();
+
+                    // Search in multiple fields
+                    termBoolQuery.Add(new WildcardQuery(new Term(FIELD_NAME, $"*{termLower}*")), Occur.SHOULD);
+                    termBoolQuery.Add(new WildcardQuery(new Term(FIELD_CONTENT, $"*{termLower}*")), Occur.SHOULD);
+                    termBoolQuery.Add(new WildcardQuery(new Term(FIELD_DOCUMENTATION, $"*{termLower}*")), Occur.SHOULD);
+                    termBoolQuery.Add(new WildcardQuery(new Term(FIELD_PARAMETERS, $"*{termLower}*")), Occur.SHOULD);
+
+                    // AND logic - each term must match somewhere
+                    booleanQuery.Add(termBoolQuery, Occur.MUST);
+                }
             }
 
             // Add scope filter

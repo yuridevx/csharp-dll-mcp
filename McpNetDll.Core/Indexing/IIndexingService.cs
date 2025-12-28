@@ -24,6 +24,17 @@ namespace McpNetDll.Core.Indexing
         KeywordSearchResult SearchByKeywords(string keywords, string searchScope = "all", int limit = 100, int offset = 0);
 
         /// <summary>
+        /// Search for elements using separate OR and AND keyword arrays
+        /// </summary>
+        /// <param name="keywordOr">Keywords where any match is sufficient (OR logic)</param>
+        /// <param name="keywordAnd">Keywords where all must match (AND logic)</param>
+        /// <param name="searchScope">Scope: all, types, methods, properties, fields, enums</param>
+        /// <param name="limit">Maximum number of results</param>
+        /// <param name="offset">Number of results to skip</param>
+        /// <returns>Search results with relevance scoring</returns>
+        KeywordSearchResult SearchByKeywords(string[]? keywordOr, string[]? keywordAnd, string searchScope = "all", int limit = 100, int offset = 0);
+
+        /// <summary>
         /// Get index statistics
         /// </summary>
         IndexStatistics GetStatistics();
