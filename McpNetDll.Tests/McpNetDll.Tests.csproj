@@ -27,10 +27,10 @@
         <ProjectReference Include="..\MyTestLibrary\MyTestLibrary.csproj"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <None Update="..\MyTestLibrary\bin\Release\net9.0\MyTestLibrary.dll">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-    </ItemGroup>
+    <Target Name="CopyTestLibrary" AfterTargets="Build">
+        <Copy SourceFiles="$(MSBuildProjectDirectory)\..\MyTestLibrary\bin\$(Configuration)\net9.0\MyTestLibrary.dll"
+              DestinationFolder="$(OutputPath)"
+              SkipUnchangedFiles="true" />
+    </Target>
 
 </Project>

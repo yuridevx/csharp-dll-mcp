@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using McpNetDll.Core.Indexing;
 using McpNetDll.Registry;
@@ -11,12 +12,12 @@ namespace McpNetDll.Tests
     {
         private readonly ITypeRegistry _typeRegistry;
         private readonly LuceneIndexingService _indexingService;
-        private const string TEST_DLL_PATH = "../../../../MyTestLibrary/bin/Debug/net9.0/MyTestLibrary.dll";
+        private static readonly string TestDllPath = Path.Combine(AppContext.BaseDirectory, "MyTestLibrary.dll");
 
         public IndexingServiceTests()
         {
             _typeRegistry = new TypeRegistry();
-            _typeRegistry.LoadAssemblies(new[] { TEST_DLL_PATH });
+            _typeRegistry.LoadAssemblies(new[] { TestDllPath });
             _indexingService = new LuceneIndexingService(_typeRegistry);
             _indexingService.BuildIndex();
         }
