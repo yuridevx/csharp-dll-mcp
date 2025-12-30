@@ -30,16 +30,26 @@ jobs:
       - name: Run tests
         run: dotnet test --configuration Release --no-build --verbosity normal
 
-      - name: Publish single file
+      - name: Publish MCP Server
         run: |
           dotnet publish McpNetDll -c Release -r win-x64 `
             --self-contained true `
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
-            -o ./publish
+            -o ./publish/mcp
+
+      - name: Publish Web API
+        run: |
+          dotnet publish McpNetDll.Web -c Release -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o ./publish/web
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ./publish/McpNetDll.exe
+          files: |
+            ./publish/mcp/McpNetDll.exe
+            ./publish/web/McpNetDll.Web.exe
           generate_release_notes: true
