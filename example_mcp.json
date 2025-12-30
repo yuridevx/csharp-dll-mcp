@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "dotnet-dll-reflector": {
+      "type": "stdio",
+      "command": "C:/path/to/McpNetDll.exe",
+      "args": ["C:/path/to/your.dll"]
+    },
+    "dotnet-dll-reflector-multiple": {
+      "type": "stdio",
+      "command": "C:/path/to/McpNetDll.exe",
+      "args": ["C:/path/to/first.dll", "C:/path/to/second.dll"]
+    }
+  }
+}
